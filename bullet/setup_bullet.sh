@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Jonny Reckless
+# Set up the bullet NNUE trainer for Pawnstar with minimal fuss: clone bullet at the pinned commit,
+# install our trainer + reference-evaluator examples, and register them in bullet's Cargo.toml.
+# Idempotent: safe to re-run.
+#
+# The installed examples (bullet/pawnstar.rs and bullet/pawnstar_eval.rs, beside this script) hard-code the net width
+# (HIDDEN_SIZE / HIDDEN), which MUST equal the engine's nnue::kHiddenSize (1024 for the shipped v20 net).
+# Change all three together to train a different-width architecture.
+#
+# Usage: setup_bullet.sh
+# Env:   BULLET   bullet checkout location (default ~/pawnstar_nnue/bullet; under %USERPROFILE% on Windows, as MSYS2 has a ~ of its own)
+#
+# Prerequisites: git, Rust/cargo. For GPU training also a CUDA toolkit (CUDA_PATH) and a driver new
+# enough for the toolkit (bullet's CUDA backend uses cuFuncLoad -> needs driver for CUDA >= 12.3).
+set -euo pipefail
+
+# Pinned bullet commit that our examples/pawnstar*.rs target (bullet's API changes over time). Always a
+# full commit SHA, never a branch name: a branch would silently retarget the trainer at an API we have not
+# checked, and the net a changed trainer writes has to pass an ENGINE repository's tools/verify_net.sh before it
+# can be believed - that gate is not in this repository and is not meant to be, because "does this net load and
+# play here" is the one question only the engine can answer (see README.md).
+BULLET_COMMIT=da426a49b2a4b79a55a87031cd51c89bdf1ff030
+BULLET="${BULLET:-${USERPROFILE:-$HOME}/pawnstar_nnue/bullet}"
+# The two example sources sit beside this script, in this repository's bullet/ directory, so they are resolved
+# from the script's own location rather than from a guess at the repository root. The copy this came from made
+# that guess - `REPO="$(dirname "$0")/.."` and then `$REPO/tools/bullet/pawnstar.rs`, which is pawnstar's layout
+# and names nothing here, so the script aborted at the first cp and installed neither file.
+TRAINER_SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Clone only if we don't already have a checkout (re-runs reuse it).
+if [ ! -d "$BULLET/.git" ]; then
+    echo "[setup] cloning bullet -> $BULLET"
+    mkdir -p "$(dirname "$BULLET")"
+    git clone https://github.com/jw1912/bullet "$BULLET"
+fi
+# Pin to the exact commit our examples target. The fetch may already have the commit locally (hence the
+# || true), but we still force a checkout so a stale working tree is brought to the pinned revision.
+# --force is required, not cosmetic: the step below edits a TRACKED file (crates/bullet_lib/Cargo.toml) to
+# register our examples, so a plain checkout of a commit that also changes that file is refused with "your
+# local changes would be overwritten" and the whole pin silently fails to move. Discarding the edit is
+# right - it is re-appended immediately afterwards.
+echo "[setup] checking out pinned commit $BULLET_COMMIT"
+git -C "$BULLET" fetch --quiet origin "$BULLET_COMMIT" 2>/dev/null || true
+git -C "$BULLET" checkout --quiet --force "$BULLET_COMMIT"
+
+# Drop our trainer + eval examples into bullet's examples/ dir (overwrite so edits here always win).
+echo "[setup] installing example sources"
+cp "$TRAINER_SOURCE_DIR/pawnstar.rs" "$BULLET/examples/pawnstar.rs"
+cp "$TRAINER_SOURCE_DIR/pawnstar_eval.rs" "$BULLET/examples/pawnstar_eval.rs"
+
+# Register the examples in bullet's Cargo.toml so `cargo build --example pawnstar[_eval]` can find them.
+# Guarded by a grep so re-runs don't append duplicate [[example]] stanzas.
+CARGO="$BULLET/crates/bullet_lib/Cargo.toml"
+if ! grep -q 'name = "pawnstar"' "$CARGO"; then
+    echo "[setup] registering examples in $CARGO"
+    cat >> "$CARGO" <<'EOF'
+
+[[example]]
+name = "pawnstar"
+path = "../../examples/pawnstar.rs"
+
+[[example]]
+name = "pawnstar_eval"
+path = "../../examples/pawnstar_eval.rs"
+EOF
+fi
+
+echo "[setup] bullet ready at $BULLET (commit $BULLET_COMMIT)"
+echo "[setup] build GPU trainer:  (cd $BULLET/crates/bullet_lib && CUDA_PATH=\$CUDA_PATH cargo build --release --features cuda --example pawnstar --example pawnstar_eval)"
+echo "[setup] build CPU trainer:  (cd $BULLET/crates/bullet_lib && cargo build --release --example pawnstar --example pawnstar_eval)"

@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Jonny Reckless
+#
+# The cheap rot checks for this repository: nothing here trains a net or needs a GPU, a dataset or a
+# toolchain beyond what the image ships. The expensive checks that matter - does a net this pipeline
+# produced load and play - are the engines' own, because "does this net work here" is the one question
+# only the engine can answer (see README.md, "What belongs here, and what does not").
+#
+# EVERY JOB RUNS ON A GITHUB-HOSTED IMAGE, PINNED BY VERSION, AND THAT IS DELIBERATE. The
+# organisation's self-hosted runner group does not admit public repositories at all, so a
+# `self-hosted` label here would queue forever and never start. The two Linux self-hosted machines
+# are also the machines that run the engines' timed chess matches, so a job landing beside a match
+# takes its cores and biases its time control - which is the second reason not to point this at them.
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: shell scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck version
+        run: shellcheck --version
+      # bash -n catches a syntax error; shellcheck catches the quoting and word-splitting faults that
+      # run fine until a path has a space in it. The pipeline scripts are what a training run invokes,
+      # so a fault in them costs a run rather than a compile.
+      - name: bash -n
+        run: |
+          for script in pipeline/*.sh bullet/*.sh .githooks/pre-commit .githooks/pre-push; do
+            bash -n "$script" && echo "ok   $script"
+          done
+      - name: shellcheck
+        run: shellcheck -S warning pipeline/*.sh bullet/*.sh .githooks/pre-commit .githooks/pre-push
+
+  python:
+    name: python
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: python version
+        run: python3 --version
+      - name: compile every module
+        run: python3 -m compileall -q pytorch spec
+      # spec/rnnue1.py is stdlib-only on purpose, so the container can be checked with no trainer
+      # environment at all. This exercises the CRC against its published check value and round-trips a
+      # net through write_net/read_payload - the two things an engine's loader depends on being right.
+      - name: the RNNUE1 container round-trips
+        run: |
+          python3 -I - <<'PY'
+          import sys
+          sys.path.insert(0, "spec")
+          import rnnue1
+
+          assert rnnue1.crc64_xz(b"123456789") == rnnue1.CRC64_CHECK_VALUE, "CRC-64/XZ check value"
+          assert len(rnnue1.KING_BUCKET_MAP) == 64, "the king-bucket map has one entry per square"
+          assert max(rnnue1.KING_BUCKET_MAP) == rnnue1.NUM_KING_BUCKETS - 1, "map overruns the buckets"
+          assert rnnue1.INPUT_FEATURES == rnnue1.NUM_KING_BUCKETS * rnnue1.BASE_FEATURES
+
+          payload = bytes(rnnue1.PAYLOAD_BYTES)
+          built = rnnue1.header(payload)
+          assert len(built) == rnnue1.HEADER_BYTES, "the header is not 64 bytes"
+          assert built[:8] == rnnue1.MAGIC, "wrong magic"
+
+          rnnue1.write_net("roundtrip.bin", payload)
+          assert rnnue1.read_payload("roundtrip.bin") == payload, "write_net/read_payload disagree"
+          print("ok  RNNUE1 container: CRC check value, map, header, round trip")
+          PY
+
+  licence-headers:
+    name: licence headers
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      # Every source file carries an SPDX identifier. pipeline/new-shape-signature.sh is the one
+      # deliberate exception: its value is being byte-identical to the copies in pawnstar, pawnstar-rs
+      # and pawnstar-go, and a fourth variant differing by two header lines is exactly the drift that
+      # file exists to detect (see PROVENANCE.md).
+      - name: every source file carries an SPDX identifier
+        run: |
+          status=0
+          for file in $(git ls-files '*.py' '*.rs' '*.c' '*.cpp' '*.sh' .githooks/pre-commit .githooks/pre-push); do
+            if [ "$file" = "pipeline/new-shape-signature.sh" ]; then
+              continue
+            fi
+            if grep -q 'SPDX-License-Identifier: GPL-3.0-or-later' "$file"; then
+              echo "ok      $file"
+            else
+              echo "MISSING $file"
+              status=1
+            fi
+          done
+          exit $status

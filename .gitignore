@@ -1,0 +1,7 @@
+# The maintainer working notes are not published: the provenance log and the project memory stay in
+# this clone and in this repository history up to the commit that removed them, not in the tree a
+# reader of the public repository gets.
+.claude/
+
+__pycache__/
+*.pyc

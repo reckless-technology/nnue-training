@@ -1,0 +1,33 @@
+# Files a POSIX shell reads stay LF in every working copy, whatever core.autocrlf says. A Windows clone with
+# autocrlf=true (every machine here has it) would otherwise check them out CRLF, and bash then reads "\r" as
+# part of each command — Git Bash and MSYS2 run these scripts on Windows, and the pipeline scripts under
+# pipeline/ are the ones a training run actually invokes.
+*.sh text eol=lf
+
+# Markdown is read as text by agents and by people on Windows, Linux and macOS, and every file is LF in the blob.
+# Left unspecified, core.autocrlf=true converts on CHECKOUT but not on write - so a file is CRLF after a fresh clone
+# and LF once git or an editor rewrites it, which is the "LF will be replaced by CRLF" warning a commit just produced
+# for README.md. Pinning it removes the ambiguity instead of asking each author to match the working copy.
+*.md text eol=lf
+# Git runs these hooks with sh, so they stay LF in every working copy for the same reason as the shell scripts above:
+# a CRLF hook is read with a "\r" on its shebang and on every line.
+.githooks/* text eol=lf
+# This file is pinned by the same reasoning: a checkout with autocrlf=true would write it CRLF.
+.gitattributes text eol=lf
+
+# The GPLv3 text is checked out exactly as committed (blob f288702d2fa16d3cdf0035b15a9fcbc552cd88e7, the same blob in pawnstar, pawnstar-rs,
+# pawnstar-go, zenith and reckless-toolkit), so that an identical licence stays byte-identical in every working copy.
+LICENSE text eol=lf
+
+# Source files are LF in the blob and in every working copy. The per-file SPDX headers were added on Windows, where
+# core.autocrlf=true would otherwise check these out CRLF and warn "LF will be replaced by CRLF" on every rewrite.
+# PROVENANCE.md's losslessness check hashes blobs, so this changes nothing it relies on.
+*.py  text eol=lf
+*.rs  text eol=lf
+*.c   text eol=lf
+*.cpp text eol=lf
+
+# The workflows run on Linux images and carry heredocs that a shell reads, so they are LF for the same
+# reason as the shell scripts above. .gitignore is pinned for the same reason as .gitattributes itself.
+*.yml      text eol=lf
+.gitignore text eol=lf
