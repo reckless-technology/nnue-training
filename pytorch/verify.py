@@ -14,6 +14,7 @@ import subprocess
 
 import numpy as np
 
+import spec_path  # noqa: F401  (puts spec/ on sys.path for the rnnue1 import below)
 import rnnue1
 from features import (HIDDEN_SIZE, INPUT_FEATURES, NUM_OUTPUT_BUCKETS,
                       integer_eval, position_features)

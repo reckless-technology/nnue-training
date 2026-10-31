@@ -99,6 +99,10 @@ cd "$BULLET/crates/bullet_lib"
 PAWNSTAR_DATA=/path/to/shuffled.data \
 PAWNSTAR_BPS=3662 PAWNSTAR_SBS=200 PAWNSTAR_WDL=0.0 PAWNSTAR_OUT=checkpoints \
     cargo run --release --features cuda --example pawnstar
+
+# Wrap the quantised checkpoint in the RNNUE1 container the engines load. bullet's tail padding is
+# dropped here; the header is written from spec/rnnue1.py's constants, never from an argument.
+spec/stamp_net.py checkpoints/quantised.bin nets/pawnstar-v21.nnue
 ```
 
 | Variable | Meaning | Default |
@@ -137,6 +141,9 @@ Other entry points:
   equal the Python reference exactly.
 - `pytorch/bulletformat_check.py` — the correctness gate for the bulletformat reader: every record's
   feature indices are compared against the text path's, and the decoded board is checked against chess.
+- `spec/stamp_net.py` — the stamper: a raw payload, a bullet-padded one or an already-stamped net in,
+  a net in the RNNUE1 container out. Given one argument it re-stamps in place, reading the net back
+  through its own CRCs first so a corrupt net fails rather than being quietly re-blessed.
 - `pipeline/new-shape-signature.sh` — the cross-port gate. It searches six fixed positions at a fixed
   depth over a net generated from nothing, so a net change and a code change can never be confused for
   one another. Three engine repositories commit this file byte-identically, and the copies agreeing
@@ -245,12 +252,6 @@ licence asks of you. Nothing here can answer that for you, because it never sees
 Most of this code was gathered here out of the engine repositories that had each grown their own copy,
 and the gathering is not complete. These are the loose ends, listed because they are visible on arrival:
 
-- **`pytorch/` does not run as placed.** `features.py`, `train.py`, `verify.py` and `bulletformat.py`
-  all `import rnnue1`, which resolved when they sat beside it in one directory and does not now that
-  the container module lives in `spec/`. They need a `sys.path` entry or a package layout.
-- **`spec/stamp_net.cpp` does not compile here.** It still `#include "nnue.h"` and writes the header
-  from an engine's compiled constants — the tautology *Why the net stamper lives here* is about.
-  Rewriting it against `spec/rnnue1.py` is the actual work of the move.
 - **`pipeline/bullet2text_main.c` is an entry point only**, 14 lines calling a function that is still
   in `zenith`.
 - **`pipeline/train_pipeline.sh` and `pipeline/run_experiment.sh`** still resolve their helpers through

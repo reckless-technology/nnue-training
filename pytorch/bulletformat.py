@@ -44,6 +44,7 @@ import os
 
 import numpy as np
 
+import spec_path  # noqa: F401  (puts spec/ on sys.path for the rnnue1 import below)
 from features import MAX_ACTIVE_FEATURES, PADDING_INDEX
 from rnnue1 import BASE_FEATURES, KING_BUCKET_MAP
 

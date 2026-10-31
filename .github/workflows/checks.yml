@@ -50,6 +50,24 @@ jobs:
         run: python3 --version
       - name: compile every module
         run: python3 -m compileall -q pytorch spec
+      # compileall parses, it does not import, so it cannot see a module that resolves nothing at run
+      # time. `pytorch/` reaches the container module through `pytorch/spec_path.py`, and this is the
+      # check that the path it arranges is still right: it needs no trainer environment, because
+      # spec/rnnue1.py is stdlib-only.
+      - name: pytorch/ can import the container module
+        working-directory: pytorch
+        run: python3 -c "import spec_path, rnnue1; print('ok  rnnue1 via spec_path:', rnnue1.MAGIC)"
+      # numpy is the only dependency of the featuriser and the bulletformat reader, so importing those
+      # for real is cheap. train.py and verify.py additionally need torch, which is not worth a CI
+      # download here - they reach rnnue1 by the same one line the step above exercises.
+      - name: the numpy-only modules import
+        run: |
+          python3 -m pip install --quiet numpy
+          cd pytorch
+          python3 -c "
+          import features, bulletformat, bulletformat_check
+          print('ok  features/bulletformat/bulletformat_check import, INPUT_FEATURES', features.INPUT_FEATURES)
+          "
       # spec/rnnue1.py is stdlib-only on purpose, so the container can be checked with no trainer
       # environment at all. This exercises the CRC against its published check value and round-trips a
       # net through write_net/read_payload - the two things an engine's loader depends on being right.
@@ -74,6 +92,45 @@ jobs:
           assert rnnue1.read_payload("roundtrip.bin") == payload, "write_net/read_payload disagree"
           print("ok  RNNUE1 container: CRC check value, map, header, round trip")
           PY
+      # The stamper is what every net in the organisation is created by, so its three accepted inputs
+      # and its refusals are checked here rather than discovered on a net. The bullet-padded input must
+      # stamp byte-identically to the bare payload: that equality is the whole point of dropping the
+      # padding, and it is what lets a loader tell a truncated file from a sound one.
+      - name: the stamper accepts its three inputs and refuses the rest
+        run: |
+          python3 -I - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          sys.path.insert(0, "spec")
+          import rnnue1
+
+          payload = bytes((i * 7 + 3) % 251 for i in range(rnnue1.PAYLOAD_BYTES))
+          open("bare.bin", "wb").write(payload)
+          open("padded.bin", "wb").write(payload + (b"bullet" * 40)[:40])
+          open("appended.bin", "wb").write(payload + b"junkjunkju")
+          open("short.bin", "wb").write(payload[:100])
+
+          def stamp(*arguments):
+              return subprocess.run([sys.executable, "spec/stamp_net.py", *arguments],
+                                    capture_output=True, text=True)
+
+          assert stamp("bare.bin", "a.nnue").returncode == 0, "a bare payload must stamp"
+          assert rnnue1.read_payload("a.nnue") == payload, "the stamped net must read back"
+          assert stamp("padded.bin", "b.nnue").returncode == 0, "bullet's padded output must stamp"
+          assert open("b.nnue", "rb").read() == open("a.nnue", "rb").read(),               "padded and bare input must give the same net"
+          assert stamp("a.nnue").returncode == 0, "a stamped net must re-stamp in place"
+
+          for name in ("appended.bin", "short.bin"):
+              assert stamp(name, "no.nnue").returncode != 0, f"{name} must be refused"
+
+          image = bytearray(open("a.nnue", "rb").read())
+          image[-1] ^= 0xFF
+          open("corrupt.nnue", "wb").write(bytes(image))
+          assert stamp("corrupt.nnue", "no.nnue").returncode != 0,               "a corrupt net must not be quietly re-blessed"
+          print("ok  stamper: 3 inputs accepted, 3 refusals, padded == bare byte for byte")
+          PY
 
   licence-headers:
     name: licence headers
@@ -83,7 +140,7 @@ jobs:
       # Every source file carries an SPDX identifier. pipeline/new-shape-signature.sh is the one
       # deliberate exception: its value is being byte-identical to the copies in pawnstar, pawnstar-rs
       # and pawnstar-go, and a fourth variant differing by two header lines is exactly the drift that
-      # file exists to detect (see PROVENANCE.md).
+      # file exists to detect.
       - name: every source file carries an SPDX identifier
         run: |
           status=0

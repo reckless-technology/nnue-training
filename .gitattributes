@@ -21,7 +21,8 @@ LICENSE text eol=lf
 
 # Source files are LF in the blob and in every working copy. The per-file SPDX headers were added on Windows, where
 # core.autocrlf=true would otherwise check these out CRLF and warn "LF will be replaced by CRLF" on every rewrite.
-# PROVENANCE.md's losslessness check hashes blobs, so this changes nothing it relies on.
+# The blob is what a checksum of these files is taken over, so the attribute changes nothing a
+# byte-for-byte comparison against the engine repositories' copies relies on.
 *.py  text eol=lf
 *.rs  text eol=lf
 *.c   text eol=lf

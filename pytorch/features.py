@@ -20,6 +20,7 @@ Architecture (the shared Reckless NNUE — one shape for every engine in the org
 
 import numpy as np
 
+import spec_path  # noqa: F401  (puts spec/ on sys.path for the rnnue1 import below)
 from rnnue1 import (BASE_FEATURES, EVALUATION_SCALE, HIDDEN_SIZE, INPUT_FEATURES, KING_BUCKET_MAP,
                     NUM_KING_BUCKETS, NUM_OUTPUT_BUCKETS, QUANT_ACCUMULATOR, QUANT_OUTPUT)
 
