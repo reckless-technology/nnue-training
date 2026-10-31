@@ -23,6 +23,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+import spec_path  # noqa: F401  (puts spec/ on sys.path for the rnnue1 import below)
 import rnnue1
 from features import (EVALUATION_SCALE, HIDDEN_SIZE, INPUT_FEATURES, MAX_ACTIVE_FEATURES,
                       NUM_OUTPUT_BUCKETS, PADDING_INDEX, QUANT_ACCUMULATOR, QUANT_OUTPUT, position_features)
