@@ -13,7 +13,7 @@ Pawnstar NNUE trainer: the shared Reckless architecture
 
 SCReLU, matching the in-engine inference in src/nnue.h. One network shape for all the Reckless chess
 engines (skill `reckless-nnue`): a net trained here loads in pawnstar, pawnstar-rs, pawnstar-go and
-zenith, and an architecture change here is a change owed to all of them.
+trebuchet, and an architecture change here is a change owed to all of them.
 
 Two things differ from the earlier shape this replaced, each measured on one machine at fixed depth and
 SPRT-gated:

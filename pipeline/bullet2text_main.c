@@ -3,7 +3,7 @@
 /**
  * @file
  * @brief Entry point of the standalone bulletformat-to-text converter (`make datagen` ->
- * ./build/zenith-bullet2text).
+ * ./build/trebuchet-bullet2text).
  */
 #include "datagen.h"
 

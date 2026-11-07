@@ -11,7 +11,7 @@ has to be arranged before the import. Importing this module is what arranges it:
     import spec_path  # noqa: F401  (puts spec/ on sys.path for the rnnue1 import below)
     from rnnue1 import HIDDEN_SIZE
 
-The engines do the same thing inline, each in a single tool (`zenith/tools/stamp_net.py`). Here four
+The engines do the same thing inline, each in a single tool (`trebuchet/tools/stamp_net.py`). Here four
 modules need it, so it is written once.
 """
 import os

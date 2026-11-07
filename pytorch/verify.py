@@ -3,10 +3,10 @@
 """Verification gate: the C engine's integer NNUE eval must equal the Python reference byte-for-byte.
 
 Loads a .nnue file, evaluates a set of FENs with `features.integer_eval` (the reference), runs the same
-FENs through `./build/zenith nnueeval <net>`, and compares. Any nonzero difference means the engine loader or
+FENs through `./build/trebuchet nnueeval <net>`, and compares. Any nonzero difference means the engine loader or
 forward pass diverges from the trainer's export contract.
 
-    python trainer/verify.py --net nets/zenith-pilot.nnue --fens data/pilot/shard_01.txt --count 2000
+    python trainer/verify.py --net nets/trebuchet-pilot.nnue --fens data/pilot/shard_01.txt --count 2000
 """
 
 import argparse
@@ -61,7 +61,7 @@ def main():
     parser.add_argument("--net", required=True)
     parser.add_argument("--fens", required=True, help="a datagen shard (or any file with FEN as first ;-field)")
     parser.add_argument("--count", type=int, default=2000)
-    parser.add_argument("--engine", default="./build/zenith")
+    parser.add_argument("--engine", default="./build/trebuchet")
     args = parser.parse_args()
 
     transformer, transformer_bias, output_weight, output_bias = load_net(args.net)

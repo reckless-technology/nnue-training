@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Jonny Reckless
-"""Zenith NNUE trainer (PyTorch, independent of any other engine's trainer).
+"""Trebuchet NNUE trainer (PyTorch, independent of any other engine's trainer).
 
-Reads Zenith's own self-play records (`fen;stm_score_cp;wdl`), trains a 768->HIDDEN perspective network
+Reads Trebuchet's own self-play records (`fen;stm_score_cp;wdl`), trains a 768->HIDDEN perspective network
 with SCReLU, and exports a quantised `.nnue` file that the C engine loads directly. A float checkpoint
 is saved alongside for inspection.
 
-    python trainer/train.py --data 'data/pilot/shard_*.txt' --out nets/zenith-pilot.nnue \
+    python trainer/train.py --data 'data/pilot/shard_*.txt' --out nets/trebuchet-pilot.nnue \
         --epochs 30 --batch-size 16384 --lr 1e-3 --wdl-lambda 0.5 --device cuda
 
 Loss: MSE( sigmoid(prediction), wdl_lambda*wdl + (1-wdl_lambda)*sigmoid(score/EVALUATION_SCALE) ), so the

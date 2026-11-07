@@ -3,8 +3,8 @@
 """The shared Reckless NNUE architecture and its `RNNUE1` net container — the Python side.
 
 One network shape and one file format for every chess engine in the organisation (`pawnstar`,
-`pawnstar-rs`, `pawnstar-go` and Zenith): a net trained once loads in all of them, so developing a new
-evaluation function is done once rather than once per engine. The shape is Zenith's, because its two
+`pawnstar-rs`, `pawnstar-go` and Trebuchet): a net trained once loads in all of them, so developing a new
+evaluation function is done once rather than once per engine. The shape is Trebuchet's, because its two
 additions over the others' — material output buckets (+14.7 Elo) and horizontal king mirroring
 (+14.3 Elo) — were measured and SPRT-gated here. See the `reckless-nnue` skill for the specification.
 
@@ -37,7 +37,7 @@ EVALUATION_SCALE = 400    # logit -> centipawn scale (must equal EVAL_SCALE in t
 
 # Horizontal king mirroring: a perspective whose own king sits on files e-h is flipped (square ^ 7) onto
 # files a-d before indexing, so every bucket trains on both wings — twice the effective data per bucket at
-# the same file size. Always on in Zenith; it is a named constant because the container's format version
+# the same file size. Always on in Trebuchet; it is a named constant because the container's format version
 # and its mirroring flag are both DERIVED from it rather than written down twice.
 IS_KING_MIRRORING_ENABLED = True
 

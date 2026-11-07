@@ -12,7 +12,7 @@ wrong weight bank. `RNNUE1` is the format read by the Reckless chess engines —
 [`pawnstar`](https://github.com/reckless-technology/pawnstar) (C++23),
 [`pawnstar-rs`](https://github.com/reckless-technology/pawnstar-rs) (Rust),
 [`pawnstar-go`](https://github.com/reckless-technology/pawnstar-go) (Go) and
-[`zenith`](https://github.com/reckless-technology/zenith) (C17) — which is why the container is shaped
+[`trebuchet`](https://github.com/reckless-technology/trebuchet) (C17) — which is why the container is shaped
 the way it is.
 
 **It ships no networks, no binaries and no training data.** You supply the data; see
@@ -253,7 +253,7 @@ Most of this code was gathered here out of the engine repositories that had each
 and the gathering is not complete. These are the loose ends, listed because they are visible on arrival:
 
 - **`pipeline/bullet2text_main.c` is an entry point only**, 14 lines calling a function that is still
-  in `zenith`.
+  in `trebuchet`.
 - **`pipeline/train_pipeline.sh` and `pipeline/run_experiment.sh`** still resolve their helpers through
   the `tools/` layout they were written in rather than this one, and two of the gates they call -
   "does this net load and play" and the match runner - belong to a consumer by design and are not here.
@@ -274,7 +274,7 @@ not hand `bash` a `\r` on every line.
 ## Licence
 
 **The code in this repository is GPL-3.0-or-later.** [LICENSE](LICENSE) is the GPLv3 text exactly as
-`pawnstar`, `pawnstar-rs`, `pawnstar-go`, `zenith` and the shared toolkit carry it. Each source file
+`pawnstar`, `pawnstar-rs`, `pawnstar-go`, `trebuchet` and the shared toolkit carry it. Each source file
 carries an `SPDX-License-Identifier: GPL-3.0-or-later` line and a `Copyright (C) 2026 Jonny Reckless`
 line; Markdown, `requirements.txt` and the `.gitkeep` placeholders carry none, and
 `pipeline/new-shape-signature.sh` deliberately carries none either, because its value is being

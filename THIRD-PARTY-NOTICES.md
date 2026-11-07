@@ -18,7 +18,7 @@ the header of each file concerned.
 | `bullet/pawnstar.rs` | The skeleton of the trainer: the `use bullet_lib::{...}` import block, the `QA`/`QB`/`SCALE` constants, the `ValueTrainerBuilder` chain, the `SavedFormat` quantisation list, the loss function, the SCReLU forward pass, and the `TrainingSchedule` layout. |
 | `bullet/pawnstar_eval.rs` | The reference inference, which follows the example inference at the foot of `simple.rs`: the SCReLU function, the `Net` field names and the order of the output dequantisation. The rest of the file is not bullet's. |
 
-Everything else in this repository was written for it or comes from `pawnstar` and `zenith`, recorded file by
+Everything else in this repository was written for it or comes from `pawnstar` and `trebuchet`, recorded file by
 file in the maintainer's provenance log; none of it carries bullet's code. bullet itself is **not** vendored here:
 `bullet/setup_bullet.sh` clones it at the pinned commit, so it is a dependency, under its own licence.
 Reading bullet's on-disk record format in `pytorch/bulletformat.py` is compatibility with a file format and

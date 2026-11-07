@@ -16,7 +16,7 @@
 .gitattributes text eol=lf
 
 # The GPLv3 text is checked out exactly as committed (blob f288702d2fa16d3cdf0035b15a9fcbc552cd88e7, the same blob in pawnstar, pawnstar-rs,
-# pawnstar-go, zenith and reckless-toolkit), so that an identical licence stays byte-identical in every working copy.
+# pawnstar-go, trebuchet and reckless-toolkit), so that an identical licence stays byte-identical in every working copy.
 LICENSE text eol=lf
 
 # Source files are LF in the blob and in every working copy. The per-file SPDX headers were added on Windows, where
