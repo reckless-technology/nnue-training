@@ -82,6 +82,13 @@ def test_layout_check_accepts_good_records_and_reports_each_fault(records, capsy
     assert "ksq says" in printed and "opp_ksq says" in printed and "king" in printed
 
 
+def test_a_bitboard_with_more_pieces_than_fit_counts_as_one_failure_and_does_not_crash(records, capsys):
+    bad = records[:1].copy()
+    bad[0]["occupancy"] = (1 << 33) - 1   # 33 pieces: one more than the 32 nibbles the record holds
+    assert bulletformat_check.check_record_layout(bad) == 1
+    assert "33 pieces" in capsys.readouterr().out
+
+
 def test_feature_check_agrees_and_detects_a_difference(records, capsys):
     assert bulletformat_check.check_features_match(records) == 0
     bad = records.copy()

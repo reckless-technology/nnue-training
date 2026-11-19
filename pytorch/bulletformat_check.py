@@ -45,7 +45,9 @@ def check_record_layout(records):
         own_king_squares, opponent_king_squares = [], []
         slot = 0
         working = occupancy
-        while working:
+        # A record has room for 2 * len(packed) nibbles. Stop decoding there, so a bitboard claiming more
+        # pieces than fit falls through to the piece-count problem below instead of indexing past the end.
+        while working and slot < 2 * len(packed):
             square = (working & -working).bit_length() - 1
             working &= working - 1
             nibble = int(packed[slot // 2] >> (4 * (slot & 1))) & 0x0F
