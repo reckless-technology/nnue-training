@@ -261,6 +261,37 @@ and the gathering is not complete. These are the loose ends, listed because they
   reference evaluator, which reproduces the engines' 250 committed reference evaluations exactly from
   a stamped net's payload.
 
+## Tests and coverage
+
+`tests/` is a pytest suite over the Python that needs no trainer environment: `spec/rnnue1.py` and
+`spec/stamp_net.py` (the container, its CRCs and refusals, and the stamper's three inputs),
+`pytorch/features.py`, `pytorch/bulletformat.py` and `pytorch/bulletformat_check.py` (the vectorised
+featuriser against the text path, over positions built into records by `tests/conftest.py`), and
+`pytorch/verify.py` (the net loader, and the comparison against a stand-in engine script). Nothing
+trains and nothing needs a GPU or a dataset.
+
+```sh
+python3 -m venv .venv && .venv/bin/python -m pip install -r tests/requirements.txt
+.venv/bin/python -m pytest tests --cov --cov-config=.coveragerc --cov-fail-under=97
+```
+
+CI's `python tests and coverage` job runs exactly that with the versions pinned in
+`tests/requirements.txt`, and fails under 97 % line coverage; the figure was 99 % (441 statements, 3
+missed) on 2026-11-19. numpy must be 2.x, because `bulletformat.py` uses `np.bitwise_count`. The CRC is
+pure Python over a 12.6 MB payload, so the stamper tests dominate the suite's minute.
+
+What is not measured, and why:
+
+- **`pytorch/train.py` has no tests.** It imports torch, which the job does not install, so
+  `.coveragerc` leaves it out rather than counting it at 0 %. Its pure parts (`_featurise_lines`,
+  `screlu`, `export_quantised_net`, the shard cache) are what a test would start with, under a CPU torch.
+- **The Rust under `bullet/` has no tests and no coverage.** `pawnstar.rs` and `pawnstar_eval.rs` are
+  bullet examples, compiled inside a bullet checkout (`bullet/setup_bullet.sh`) and not a crate of this
+  repository, so there is nothing for `cargo llvm-cov` to run here. The nearest check is the engines' 250
+  reference evaluations, which `pawnstar_eval.rs` must reproduce.
+- **The shell scripts and `pipeline/bullet2text_main.c`** are checked by `bash -n` and shellcheck in CI
+  and are not measured.
+
 ## Working on this repository
 
 `.githooks/` holds `pre-commit` and `pre-push` hooks that **enforce the maintainer's own identity** and

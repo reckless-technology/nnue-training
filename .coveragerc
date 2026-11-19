@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Jonny Reckless
+[run]
+source =
+    spec
+    pytorch
+omit =
+    # train.py imports torch, which CI does not install and no test here exercises: it is reported as
+    # untested in the README, not measured at 0 %.
+    pytorch/train.py
+branch = false
+
+[report]
+show_missing = true
+skip_empty = true

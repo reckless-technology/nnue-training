@@ -68,69 +68,31 @@ jobs:
           import features, bulletformat, bulletformat_check
           print('ok  features/bulletformat/bulletformat_check import, INPUT_FEATURES', features.INPUT_FEATURES)
           "
-      # spec/rnnue1.py is stdlib-only on purpose, so the container can be checked with no trainer
-      # environment at all. This exercises the CRC against its published check value and round-trips a
-      # net through write_net/read_payload - the two things an engine's loader depends on being right.
-      - name: the RNNUE1 container round-trips
+
+  # The container, the stamper, the featuriser, the bulletformat reader and the verification gate's net
+  # loader are tested by tests/ (pytest), and their line coverage is measured and gated here. The old
+  # inline round-trip and stamper steps of the `python` job moved into tests/test_rnnue1.py and
+  # tests/test_stamp_net.py, where coverage can see them.
+  #
+  # The gate is a little under the measured figure (99 % of 441 statements on 2026-11-19), so a new
+  # untested function fails the run and a single dropped line does not. pytorch/train.py is outside the
+  # measurement - it needs torch, which this job does not install - and is listed as untested in the
+  # README rather than counted at 0 %. Tool versions are pinned in tests/requirements.txt; numpy must be
+  # 2.x because bulletformat.py calls np.bitwise_count.
+  python-coverage:
+    name: python tests and coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: python version
+        run: python3 --version
+      - name: install the pinned test tools
         run: |
-          python3 -I - <<'PY'
-          import sys
-          sys.path.insert(0, "spec")
-          import rnnue1
-
-          assert rnnue1.crc64_xz(b"123456789") == rnnue1.CRC64_CHECK_VALUE, "CRC-64/XZ check value"
-          assert len(rnnue1.KING_BUCKET_MAP) == 64, "the king-bucket map has one entry per square"
-          assert max(rnnue1.KING_BUCKET_MAP) == rnnue1.NUM_KING_BUCKETS - 1, "map overruns the buckets"
-          assert rnnue1.INPUT_FEATURES == rnnue1.NUM_KING_BUCKETS * rnnue1.BASE_FEATURES
-
-          payload = bytes(rnnue1.PAYLOAD_BYTES)
-          built = rnnue1.header(payload)
-          assert len(built) == rnnue1.HEADER_BYTES, "the header is not 64 bytes"
-          assert built[:8] == rnnue1.MAGIC, "wrong magic"
-
-          rnnue1.write_net("roundtrip.bin", payload)
-          assert rnnue1.read_payload("roundtrip.bin") == payload, "write_net/read_payload disagree"
-          print("ok  RNNUE1 container: CRC check value, map, header, round trip")
-          PY
-      # The stamper is what every net in the organisation is created by, so its three accepted inputs
-      # and its refusals are checked here rather than discovered on a net. The bullet-padded input must
-      # stamp byte-identically to the bare payload: that equality is the whole point of dropping the
-      # padding, and it is what lets a loader tell a truncated file from a sound one.
-      - name: the stamper accepts its three inputs and refuses the rest
-        run: |
-          python3 -I - <<'PY'
-          import os
-          import subprocess
-          import sys
-
-          sys.path.insert(0, "spec")
-          import rnnue1
-
-          payload = bytes((i * 7 + 3) % 251 for i in range(rnnue1.PAYLOAD_BYTES))
-          open("bare.bin", "wb").write(payload)
-          open("padded.bin", "wb").write(payload + (b"bullet" * 40)[:40])
-          open("appended.bin", "wb").write(payload + b"junkjunkju")
-          open("short.bin", "wb").write(payload[:100])
-
-          def stamp(*arguments):
-              return subprocess.run([sys.executable, "spec/stamp_net.py", *arguments],
-                                    capture_output=True, text=True)
-
-          assert stamp("bare.bin", "a.nnue").returncode == 0, "a bare payload must stamp"
-          assert rnnue1.read_payload("a.nnue") == payload, "the stamped net must read back"
-          assert stamp("padded.bin", "b.nnue").returncode == 0, "bullet's padded output must stamp"
-          assert open("b.nnue", "rb").read() == open("a.nnue", "rb").read(),               "padded and bare input must give the same net"
-          assert stamp("a.nnue").returncode == 0, "a stamped net must re-stamp in place"
-
-          for name in ("appended.bin", "short.bin"):
-              assert stamp(name, "no.nnue").returncode != 0, f"{name} must be refused"
-
-          image = bytearray(open("a.nnue", "rb").read())
-          image[-1] ^= 0xFF
-          open("corrupt.nnue", "wb").write(bytes(image))
-          assert stamp("corrupt.nnue", "no.nnue").returncode != 0,               "a corrupt net must not be quietly re-blessed"
-          print("ok  stamper: 3 inputs accepted, 3 refusals, padded == bare byte for byte")
-          PY
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --requirement tests/requirements.txt
+          .venv/bin/python -m pip list --format=freeze | grep -E -i '^(numpy|pytest|pytest-cov|coverage)=='
+      - name: pytest with line coverage, failing under the gate
+        run: .venv/bin/python -m pytest tests --cov --cov-config=.coveragerc --cov-fail-under=97 --cov-report=term-missing
 
   licence-headers:
     name: licence headers
