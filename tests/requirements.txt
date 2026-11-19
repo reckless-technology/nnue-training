@@ -1,0 +1,6 @@
+# The pinned tools for tests/ and the coverage gate (see .github/workflows/checks.yml, job python-coverage).
+# numpy must be 2.x: pytorch/bulletformat.py uses np.bitwise_count, which numpy 1.26 lacks.
+numpy==2.3.5
+pytest==9.0.2
+pytest-cov==7.0.0
+coverage==7.17.3
