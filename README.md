@@ -276,7 +276,7 @@ python3 -m venv .venv && .venv/bin/python -m pip install -r tests/requirements.t
 ```
 
 CI's `python tests and coverage` job runs exactly that with the versions pinned in
-`tests/requirements.txt`, and fails under 97 % line coverage; the figure was 99 % (441 statements, 3
+`tests/requirements.txt`, and fails under 97 % line coverage; the figure was 99 % (441 statements, 2
 missed) on 2026-11-19. numpy must be 2.x, because `bulletformat.py` uses `np.bitwise_count`. The CRC is
 pure Python over a 12.6 MB payload, so the stamper tests dominate the suite's minute.
 
