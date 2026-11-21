@@ -261,13 +261,12 @@ fn check_lr_schedule(end_sb: usize, step: usize, start_sb: usize) {
         // and so the shape any earlier run was compared against, and gets a tail worth collecting.
         // The suggestion's own shape is recomputed and printed rather than assumed, because lowering
         // the step can fit an extra drop in and the message must not claim otherwise.
+        // The largest such step is 0 when the step is already 1 (end_sb / 1 drops never fit in end_sb - 1
+        // superbatches), so no smaller step exists and only the longer run is offered. It is checked
+        // before lr_schedule_shape sees it, which divides by the step: that division used to panic here
+        // ("attempt to divide by zero") in place of this refusal, on any refused run at PAWNSTAR_LR_STEP=1.
         let suggested_step = (end_sb - 1) / intended;
-        let suggested = lr_schedule_shape(end_sb, suggested_step);
-        let suggested_drops: Vec<String> =
-            (1..=suggested.intended_drops).map(|d| (d * suggested_step + 1).to_string()).collect();
-        let suggested_drops = suggested_drops.join("/");
-        let suggested_tail = suggested.tail_superbatches;
-        let suggested_rate = lr_after_drops(suggested.reached_drops);
+        let suggested = (suggested_step > 0).then(|| lr_schedule_shape(end_sb, suggested_step));
         let longer_run = last_sb + USEFUL_TAIL_SUPERBATCHES - 1;
 
         eprintln!("LR SCHEDULE REFUSED: the last learning-rate drop never applies.");
@@ -282,7 +281,12 @@ fn check_lr_schedule(end_sb: usize, step: usize, start_sb: usize) {
         // Offered only when it passes this same guard: on a short run, lowering the step enough to
         // fit the last drop can fit one more besides, and a suggestion that would itself be refused
         // is worse than none.
-        if suggested.reached_drops == suggested.intended_drops {
+        if let Some(suggested) = suggested.filter(|s| s.reached_drops == s.intended_drops) {
+            let suggested_drops: Vec<String> =
+                (1..=suggested.intended_drops).map(|d| (d * suggested_step + 1).to_string()).collect();
+            let suggested_drops = suggested_drops.join("/");
+            let suggested_tail = suggested.tail_superbatches;
+            let suggested_rate = lr_after_drops(suggested.reached_drops);
             eprintln!("    PAWNSTAR_LR_STEP={suggested_step}: drops at {suggested_drops}, then");
             eprintln!("      {suggested_tail} superbatch(es) at the lowest rate {suggested_rate:.8}");
         }
