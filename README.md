@@ -261,6 +261,42 @@ and the gathering is not complete. These are the loose ends, listed because they
   reference evaluator, which reproduces the engines' 250 committed reference evaluations exactly from
   a stamped net's payload.
 
+## Screening a candidate net
+
+A candidate net can be screened against the net Pawnstar ships on GitHub-hosted runners, with the
+**screen-net** workflow ([`.github/workflows/screen-net.yml`](.github/workflows/screen-net.yml)). It is manual
+only: `gh workflow run screen-net.yml -f candidate_net_url=<https url> -f candidate_net_sha256=<64 hex>`.
+
+It downloads the net and stops unless its SHA-256 matches, before anything is built; builds Pawnstar once at
+`pawnstar_ref` (empty means the newest `vMAJOR.MINOR.PATCH` tag) and runs that one binary on both sides, the
+candidate net against the net that ref ships; and calls Pawnstar's reusable `match-core.yml`, pinned to a commit.
+The match runner is the engines' (see above): this workflow stages two nets and calls it, and holds none of its
+code. Pawnstar's own RNNUE1 preflight runs in every chunk before it plays. The result is in the job summary
+(opening-corrected Elo with a 95% bar, the pooled pentanomial, per-chunk speed). The minutes are this
+repository's, on public-repository hosted runners.
+
+| input | default | |
+|---|---|---|
+| `mode` | `both` | `depth`, `time` or `both`: lin-0's screening played a depth match and a clock match |
+| `depth` | `8` | fixed depth of the depth match |
+| `time_control` | `8+0.08` | clock of the clock match |
+| `games` | `4000` | per match, rounded up to whole colour-reversed pairs |
+| `chunks` | `20` | chunk jobs per match; the games are divided between them |
+| `hash_mb` | `16` | transposition table per engine |
+| `concurrency` | `2` | games at once per chunk (a hosted runner is 2 cores) |
+| `first_opening` | `1` | first position of Pawnstar's `nnue/openings.epd` |
+
+**Where the defaults come from.** They are the parameters of the hand-run chain scripts on lin-0
+(`chain-runF-vs-v12.sh` and `pawnstar-match.sh`, read 2026-11-23): depth 8 and 8+0.08; 1000 games a chunk, four
+chunks, so 4000 a match; `Hash` 16 MB, `Threads` 1; the opening set Pawnstar ships; adjudication of draws
+(movenumber 40, movecount 8, score 20) and resignations (movecount 3, score 600), which the core plays with the
+same flags. Two differences are the hosted runners': the 4000 games are cut into 20 chunk jobs, not four serial
+ones, and a hosted runner's CPU model is not fixed, so a clock match is comparable with lin-0's only
+approximately; a fixed-depth match is deterministic across machines. Sanity check: the shipped net against
+itself at depth 8 scores exactly 50% with every colour-reversed pair drawn 1-1.
+
+Every public repository in the organisation shares about 60 hosted jobs: keep `chunks` modest.
+
 ## Tests and coverage
 
 `tests/` is a pytest suite over the Python that needs no trainer environment: `spec/rnnue1.py` and
