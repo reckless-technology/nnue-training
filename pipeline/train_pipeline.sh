@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Jonny Reckless
-# End-to-end NNUE training pipeline. Trains a quantised net and exports it to a path the engine loads.
+# End-to-end NNUE training pipeline. Trains a quantized net and exports it to a path the engine loads.
 #
 # Two input modes (auto-detected from the first argument):
 #   * a DIRECTORY of text shards (data_*.txt / seed*.txt in bullet's "FEN | eval | wdl" text format)
@@ -14,10 +14,10 @@
 # THE TRAINING DATA IS THE CALLER'S, AND SO IS THE QUESTION OF WHETHER THEY MAY USE IT. This script
 # downloads nothing and holds nothing: it reads whatever path it is given. Both input formats are
 # specified in README.md, "The data this trainer reads", which also notes that a net trained on a
-# licensed database may carry an obligation of that database's licence when it is distributed.
+# licensed database may carry an obligation of that database's license when it is distributed.
 #
-# Label quality is what decides the net, not volume: positions labelled by a strong search at a real
-# node budget are worth many times the same count labelled cheaply.
+# Label quality is what decides the net, not volume: positions labeled by a strong search at a real
+# node budget are worth many times the same count labeled cheaply.
 #
 # Usage: train_pipeline.sh <data_dir | shuffled.data> <out_net.bin> [end_superbatch]
 #
@@ -137,7 +137,7 @@ cd "$BULLET/crates/bullet_lib"
 PAWNSTAR_DATA="$SHUF_DATA" PAWNSTAR_BPS="$BPS" PAWNSTAR_SBS="$END_SB" PAWNSTAR_OUT="$CKPT" \
     cargo run --release $FEATURES --example pawnstar
 
-# [4/4] bullet writes a checkpoint dir per superbatch; the final one holds the quantised net we ship.
+# [4/4] bullet writes a checkpoint dir per superbatch; the final one holds the quantized net we ship.
 echo "[4/4] exporting net -> $OUT_NET"
 cp "$CKPT/pawnstar-$END_SB/quantised.bin" "$OUT_NET"
 ls -la "$OUT_NET"

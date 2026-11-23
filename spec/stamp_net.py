@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Jonny Reckless
 """Wrap a raw trainer payload in the shared Reckless `RNNUE1` container.
 
-A trainer writes a headerless quantised net. This tool prepends the 64-byte header every Reckless engine
+A trainer writes a headerless quantized net. This tool prepends the 64-byte header every Reckless engine
 reads, **written entirely from `rnnue1.py`'s own constants** -- the architecture fields, the king-bucket
 map's CRC-64, the payload length, and then the payload's and the header's own CRC-64. Nothing is taken
 from an argument, so the header always asserts the architecture this repository trained, and a payload of
@@ -18,7 +18,7 @@ Three inputs are accepted, and the only difference is where the payload starts a
 * **A net already in the RNNUE1 container** is read back through its own checks first, so re-stamping a
   corrupt net fails rather than quietly re-blessing it.
 * **A bare payload** of exactly `PAYLOAD_BYTES`, straight from the PyTorch pipeline.
-* **bullet's quantised output**, which is the same payload padded up to a 64-byte boundary with repeats
+* **bullet's quantized output**, which is the same payload padded up to a 64-byte boundary with repeats
   of the word `bullet`. The padding is dropped: RNNUE1 records an exact payload length and the engine's
   loader checks the file holds nothing after it, which is what lets a truncated or an appended-to file be
   told apart from a sound one.
@@ -52,7 +52,7 @@ def payload_of(path):
     if len(image) == rnnue1.PAYLOAD_BYTES:
         return image
 
-    # bullet pads its quantised output up to a 64-byte boundary, so anything in [payload, payload + 64)
+    # bullet pads its quantized output up to a 64-byte boundary, so anything in [payload, payload + 64)
     # is this architecture's payload plus padding. Check the padding is what bullet writes before
     # dropping it: a file that is a little too long for another reason must not be silently truncated.
     padding_length = len(image) - rnnue1.PAYLOAD_BYTES

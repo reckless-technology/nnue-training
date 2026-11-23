@@ -3,7 +3,7 @@
 #
 # Screen a candidate net on GitHub-hosted runners: the candidate against the net Pawnstar ships, in Pawnstar, through
 # the engines' shared match workflow. A candidate comes out of GPU training elsewhere; this is the cheap first look
-# at whether it is worth a longer match. It replaces the by-hand chain scripts that ran on lin-0, the organisation's
+# at whether it is worth a longer match. It replaces the by-hand chain scripts that ran on lin-0, the organization's
 # one self-hosted Linux machine, where a running match made every private repository unpushable.
 #
 # Manual only. The match runner stays the engines': this file builds Pawnstar, stages the two nets and calls
@@ -22,7 +22,7 @@
 #
 # The core is pinned to a COMMIT, never a branch: it checks its tools out at the commit it was called at.
 #
-# Capacity: every public repository in the organisation shares about 60 concurrent hosted jobs and the core keeps
+# Capacity: every public repository in the organization shares about 60 concurrent hosted jobs and the core keeps
 # max-parallel at 40. Keep `chunks` modest.
 name: screen-net
 
@@ -47,7 +47,7 @@ on:
         description: 'Time control for the clock match'
         default: '8+0.08'
       games:
-        description: 'Games per match (rounded up to whole colour-reversed pairs); lin-0 played 4 x 1000'
+        description: 'Games per match (rounded up to whole color-reversed pairs); lin-0 played 4 x 1000'
         default: '4000'
       chunks:
         description: 'Chunk jobs per match'

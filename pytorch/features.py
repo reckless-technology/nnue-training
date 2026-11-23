@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Jonny Reckless
-"""FEN featurisation, the quantisation contract, and the integer forward pass.
+"""FEN featurization, the quantization contract, and the integer forward pass.
 
-This module is the single source of truth for the feature-index convention and the quantisation
+This module is the single source of truth for the feature-index convention and the quantization
 arithmetic. The C engine (src/nnue.*) must reproduce `feature_index` and `integer_eval` byte-for-byte —
 the verification gate compares the engine's integer eval against `integer_eval` here on a fixed FEN set.
 The architecture's numbers and the on-disk container come from `rnnue1.py`, which every Reckless engine
 shares; nothing about the shape is written down twice.
 
-Architecture (the shared Reckless NNUE — one shape for every engine in the organisation):
+Architecture (the shared Reckless NNUE — one shape for every engine in the organization):
     768 base inputs per perspective (6 piece types x 2 colors x 64 squares, own pieces first), replicated
     across NUM_KING_BUCKETS king-input buckets selected by the perspective's own king square (file x
     board-half, with files e-h MIRRORED onto a-d: the whole perspective flips horizontally, square ^ 7, so
@@ -129,7 +129,7 @@ def integer_eval(feature_transformer_weight, feature_transformer_bias, output_we
                  own_indices, opponent_indices):
     """Reference integer forward pass; MUST stay identical to nnue::evaluate in the C engine.
 
-    Arguments are the quantised arrays exactly as stored in the .nnue file:
+    Arguments are the quantized arrays exactly as stored in the .nnue file:
         feature_transformer_weight : int array shaped [INPUT_FEATURES, HIDDEN_SIZE]  (6144 king-bucketed rows)
         feature_transformer_bias   : int array shaped [HIDDEN_SIZE]
         output_weight              : int array shaped [NUM_OUTPUT_BUCKETS, 2 * HIDDEN_SIZE]

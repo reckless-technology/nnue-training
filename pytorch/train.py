@@ -3,7 +3,7 @@
 """Trebuchet NNUE trainer (PyTorch, independent of any other engine's trainer).
 
 Reads Trebuchet's own self-play records (`fen;stm_score_cp;wdl`), trains a 768->HIDDEN perspective network
-with SCReLU, and exports a quantised `.nnue` file that the C engine loads directly. A float checkpoint
+with SCReLU, and exports a quantized `.nnue` file that the C engine loads directly. A float checkpoint
 is saved alongside for inspection.
 
     python trainer/train.py --data 'data/pilot/shard_*.txt' --out nets/trebuchet-pilot.nnue \
@@ -30,9 +30,9 @@ from features import (EVALUATION_SCALE, HIDDEN_SIZE, INPUT_FEATURES, MAX_ACTIVE_
 
 
 # --------------------------------------------------------------------------------------------------
-# Data loading / featurisation
+# Data loading / featurization
 # --------------------------------------------------------------------------------------------------
-def _featurise_lines(lines):
+def _featurize_lines(lines):
     """Parse a chunk of `fen;score;wdl` lines into padded feature arrays. Runs in a worker process."""
     count = len(lines)
     own_indices = np.full((count, MAX_ACTIVE_FEATURES), PADDING_INDEX, dtype=np.int16)
@@ -65,12 +65,12 @@ def _featurise_lines(lines):
 
 
 def load_dataset(data_globs, cache_path=None):
-    """Featurise all shards into padded index arrays. One pass, one process (robust and debuggable); a
+    """Featurize all shards into padded index arrays. One pass, one process (robust and debuggable); a
     per-shard progress line is printed. `data_globs` is one glob or a list of globs. If `cache_path` is
-    given it is loaded when present and written otherwise, so repeated runs skip featurisation entirely."""
+    given it is loaded when present and written otherwise, so repeated runs skip featurization entirely."""
     if cache_path and os.path.exists(cache_path):
         cached = np.load(cache_path)
-        print(f"loaded featurised cache {cache_path}: {cached['scores'].shape[0]:,} positions")
+        print(f"loaded featurized cache {cache_path}: {cached['scores'].shape[0]:,} positions")
         return cached["own"], cached["opponent"], cached["scores"], cached["results"]
 
     if isinstance(data_globs, str):
@@ -84,33 +84,33 @@ def load_dataset(data_globs, cache_path=None):
     start_time = time.time()
     for path in paths:
         with open(path) as handle:
-            own, opponent, scores, results = _featurise_lines(handle.readlines())
+            own, opponent, scores, results = _featurize_lines(handle.readlines())
         own_parts.append(own)
         opponent_parts.append(opponent)
         score_parts.append(scores)
         result_parts.append(results)
         total += scores.shape[0]
-        print(f"  featurised {os.path.basename(path)}  ({total:,} positions, {time.time() - start_time:.0f}s)")
+        print(f"  featurized {os.path.basename(path)}  ({total:,} positions, {time.time() - start_time:.0f}s)")
 
     own_indices = np.concatenate(own_parts)
     opponent_indices = np.concatenate(opponent_parts)
     scores = np.concatenate(score_parts)
     results = np.concatenate(result_parts)
-    print(f"featurised {len(scores):,} positions in {time.time() - start_time:.0f}s")
+    print(f"featurized {len(scores):,} positions in {time.time() - start_time:.0f}s")
 
     if cache_path:
         np.savez(cache_path, own=own_indices, opponent=opponent_indices, scores=scores, results=results)
-        print(f"wrote featurised cache {cache_path}")
+        print(f"wrote featurized cache {cache_path}")
     return own_indices, opponent_indices, scores, results
 
 
-def featurise_shard(text_path, npz_path, chunk_bytes=256 * 1024 * 1024):
-    """Featurise one `fen;score;wdl` text shard into a single .npz. To keep peak RAM to ~one shard's arrays
-    (~13GB) — so several shards can be featurised in parallel without OOM — we count lines first, PRE-ALLOCATE
+def featurize_shard(text_path, npz_path, chunk_bytes=256 * 1024 * 1024):
+    """Featurize one `fen;score;wdl` text shard into a single .npz. To keep peak RAM to ~one shard's arrays
+    (~13GB) — so several shards can be featurized in parallel without OOM — we count lines first, PRE-ALLOCATE
     the output arrays, and fill them chunk-by-chunk in place (no np.concatenate, which would transiently
     double memory). Resumable: skips if the target exists; writes atomically via a .tmp."""
     if os.path.exists(npz_path):
-        print(f"  skip {os.path.basename(npz_path)} (already featurised)", flush=True)
+        print(f"  skip {os.path.basename(npz_path)} (already featurized)", flush=True)
         return
     start_time = time.time()
     with open(text_path) as handle:
@@ -127,7 +127,7 @@ def featurise_shard(text_path, npz_path, chunk_bytes=256 * 1024 * 1024):
             lines = handle.readlines(chunk_bytes)
             if not lines:
                 break
-            chunk_own, chunk_opponent, chunk_scores, chunk_results = _featurise_lines(lines)
+            chunk_own, chunk_opponent, chunk_scores, chunk_results = _featurize_lines(lines)
             count = chunk_scores.shape[0]
             own[kept : kept + count] = chunk_own
             opponent[kept : kept + count] = chunk_opponent
@@ -138,7 +138,7 @@ def featurise_shard(text_path, npz_path, chunk_bytes=256 * 1024 * 1024):
     temporary = npz_path + ".tmp.npz"
     np.savez(temporary, own=own[:kept], opponent=opponent[:kept], scores=scores[:kept], results=results[:kept])
     os.replace(temporary, npz_path)
-    print(f"  featurised {os.path.basename(text_path)} -> {os.path.basename(npz_path)} "
+    print(f"  featurized {os.path.basename(text_path)} -> {os.path.basename(npz_path)} "
           f"({kept:,} positions, {time.time() - start_time:.0f}s)", flush=True)
 
 
@@ -182,9 +182,9 @@ class PerspectiveNetwork(nn.Module):
 
 
 # --------------------------------------------------------------------------------------------------
-# Quantised export
+# Quantized export
 # --------------------------------------------------------------------------------------------------
-def export_quantised_net(model, path):
+def export_quantized_net(model, path):
     with torch.no_grad():
         transformer = model.feature_transformer.weight[:INPUT_FEATURES].cpu().numpy()  # [6144, HIDDEN]
         transformer_bias = model.feature_transformer_bias.cpu().numpy()                # [HIDDEN]
@@ -227,19 +227,20 @@ def train(args):
     target = args.wdl_lambda * results + (1.0 - args.wdl_lambda) * torch.sigmoid(scores / EVALUATION_SCALE)
 
     model = PerspectiveNetwork(args.hidden_size).to(device)
-    optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=args.epochs)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # Per-epoch checkpointing: a wedged/killed run resumes at the last completed epoch instead of from
     # scratch (two 10h+ GPU runs have died mid-flight to host-level CUDA wedges). The checkpoint restores
-    # model/optimiser/scheduler state exactly; the shard shuffle is epoch-seeded, so a resumed run walks
+    # model/optimizer/scheduler state exactly; the shard shuffle is epoch-seeded, so a resumed run walks
     # the same shard order it would have. Written atomically; removed on successful export.
     checkpoint_path = args.out + ".ckpt"
     start_epoch = 0
     if args.resume and os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model"])
-        optimiser.load_state_dict(checkpoint["optimiser"])
+        # A checkpoint written before the rename keys the optimizer state "optimiser"; read either.
+        optimizer.load_state_dict(checkpoint["optimizer"] if "optimizer" in checkpoint else checkpoint["optimiser"])
         scheduler.load_state_dict(checkpoint["scheduler"])
         start_epoch = checkpoint["epoch"]
         print(f"resumed from {checkpoint_path}: {start_epoch} epochs already complete", flush=True)
@@ -280,9 +281,9 @@ def train(args):
             prediction = model(batch_own, batch_opponent)
             loss = torch.mean((torch.sigmoid(prediction) - batch_target) ** 2)
 
-            optimiser.zero_grad(set_to_none=True)
+            optimizer.zero_grad(set_to_none=True)
             loss.backward()
-            optimiser.step()
+            optimizer.step()
             running_loss += loss.item()
             batches += 1
         scheduler.step()
@@ -291,7 +292,7 @@ def train(args):
               f"lr {scheduler.get_last_lr()[0]:.2e}  {time.time() - epoch_start:.1f}s")
 
     torch.save(model.state_dict(), args.out.replace(".nnue", ".pt"))
-    export_quantised_net(model, args.out)
+    export_quantized_net(model, args.out)
 
 
 def _load_shard_npz(path, wdl_lambda):
@@ -334,19 +335,20 @@ def stream_train(args):
           f"batch {args.batch_size}, hidden {args.hidden_size}", flush=True)
 
     model = PerspectiveNetwork(args.hidden_size).to(device)
-    optimiser = torch.optim.AdamW(model.parameters(), lr=args.lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=args.epochs)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # Per-epoch checkpointing: a wedged/killed run resumes at the last completed epoch instead of from
     # scratch (two 10h+ GPU runs have died mid-flight to host-level CUDA wedges). The checkpoint restores
-    # model/optimiser/scheduler state exactly; the shard shuffle is epoch-seeded, so a resumed run walks
+    # model/optimizer/scheduler state exactly; the shard shuffle is epoch-seeded, so a resumed run walks
     # the same shard order it would have. Written atomically; removed on successful export.
     checkpoint_path = args.out + ".ckpt"
     start_epoch = 0
     if args.resume and os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model"])
-        optimiser.load_state_dict(checkpoint["optimiser"])
+        # A checkpoint written before the rename keys the optimizer state "optimiser"; read either.
+        optimizer.load_state_dict(checkpoint["optimizer"] if "optimizer" in checkpoint else checkpoint["optimiser"])
         scheduler.load_state_dict(checkpoint["scheduler"])
         start_epoch = checkpoint["epoch"]
         print(f"resumed from {checkpoint_path}: {start_epoch} epochs already complete", flush=True)
@@ -385,9 +387,9 @@ def stream_train(args):
                 batch_target = target[batch].to(device, non_blocking=True)
                 prediction = model(batch_own, batch_opponent)
                 loss = torch.mean((torch.sigmoid(prediction) - batch_target) ** 2)
-                optimiser.zero_grad(set_to_none=True)
+                optimizer.zero_grad(set_to_none=True)
                 loss.backward()
-                optimiser.step()
+                optimizer.step()
                 running_loss += loss.item()
                 batches += 1
             positions += count
@@ -396,12 +398,12 @@ def stream_train(args):
         print(f"epoch {epoch + 1:3d}/{args.epochs}  train {running_loss / max(batches, 1):.6f}  "
               f"val {validation_loss():.6f}  lr {scheduler.get_last_lr()[0]:.2e}  {positions:,} pos  "
               f"{time.time() - epoch_start:.0f}s", flush=True)
-        torch.save({"epoch": epoch + 1, "model": model.state_dict(), "optimiser": optimiser.state_dict(),
+        torch.save({"epoch": epoch + 1, "model": model.state_dict(), "optimizer": optimizer.state_dict(),
                     "scheduler": scheduler.state_dict()}, checkpoint_path + ".tmp")
         os.replace(checkpoint_path + ".tmp", checkpoint_path)
 
     torch.save(model.state_dict(), args.out.replace(".nnue", ".pt"))
-    export_quantised_net(model, args.out)
+    export_quantized_net(model, args.out)
     if os.path.exists(checkpoint_path):
         os.remove(checkpoint_path) # the exported net supersedes it
 
@@ -410,8 +412,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", nargs="+", help="one or more globs of fen;score;wdl shards (monolithic mode)")
     parser.add_argument("--out", help="output .nnue path")
-    parser.add_argument("--featurise-shard", nargs=2, metavar=("TEXT", "NPZ"),
-                        help="featurise a single text shard into NPZ and exit (for parallel featurisation)")
+    # --featurise-shard is the old spelling, kept as an alias for any script outside this repository.
+    parser.add_argument("--featurize-shard", "--featurise-shard", nargs=2, metavar=("TEXT", "NPZ"),
+                        help="featurize a single text shard into NPZ and exit (for parallel featurization)")
     parser.add_argument("--shard-dir", help="directory of per-shard .npz caches for streaming training")
     parser.add_argument("--resume", action="store_true",
                         help="continue from <out>.nnue.ckpt if present (written after every epoch)")
@@ -422,13 +425,13 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--wdl-lambda", type=float, default=0.5)
     parser.add_argument("--hidden-size", type=int, default=HIDDEN_SIZE)
-    parser.add_argument("--cache", default=None, help="optional .npz featurisation cache (load if present, else write)")
+    parser.add_argument("--cache", default=None, help="optional .npz featurization cache (load if present, else write)")
     parser.add_argument("--val-fraction", type=float, default=0.01, help="fraction held out for validation loss")
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
 
-    if args.featurise_shard:
-        featurise_shard(args.featurise_shard[0], args.featurise_shard[1])
+    if args.featurize_shard:
+        featurize_shard(args.featurize_shard[0], args.featurize_shard[1])
         return
     if not args.out:
         parser.error("--out is required for training")

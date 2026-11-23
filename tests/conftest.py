@@ -49,8 +49,8 @@ def record_for(fen, score=0, result=1):
         elif character.isdigit():
             file += int(character)
         else:
-            colour = 0 if character.isupper() else 1
-            pieces[rank * 8 + file] = (colour << 3) | PIECE_TYPES.index(character.lower())
+            color = 0 if character.isupper() else 1
+            pieces[rank * 8 + file] = (color << 3) | PIECE_TYPES.index(character.lower())
             file += 1
     occupancy = 0
     nibbles = []

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Jonny Reckless
-"""The bulletformat reader and featuriser, and the check tool that gates them."""
+"""The bulletformat reader and featurizer, and the check tool that gates them."""
 import sys
 
 import numpy as np
@@ -40,8 +40,8 @@ def test_record_to_fen_round_trips_the_placement(records):
         assert bulletformat.record_to_fen(record) == fen.split()[0] + " w - - 0 1"
 
 
-def test_vectorised_features_equal_the_text_path_for_every_position(records):
-    own, opponent, _, _ = bulletformat.featurise_records(records)
+def test_vectorized_features_equal_the_text_path_for_every_position(records):
+    own, opponent, _, _ = bulletformat.featurize_records(records)
     assert own.shape == (len(FENS), features.MAX_ACTIVE_FEATURES)
     for row, fen in enumerate(FENS):
         _, text_own, text_opponent = features.position_features(fen)
@@ -52,20 +52,20 @@ def test_vectorised_features_equal_the_text_path_for_every_position(records):
 
 
 def test_scores_and_results_are_scaled(records):
-    _, _, scores, results = bulletformat.featurise_records(records)
+    _, _, scores, results = bulletformat.featurize_records(records)
     assert scores.dtype == np.float32 and scores[1] == (1 - 4) * 37
     assert results[:3].tolist() == [0.0, 0.5, 1.0]
 
 
-def test_featurise_refuses_more_than_thirty_two_pieces():
+def test_featurize_refuses_more_than_thirty_two_pieces():
     record = bytearray(record_for(FENS[0]))
     record[0:8] = (0xFFFFFFFFFFFFFFFF).to_bytes(8, "little")
     with pytest.raises(ValueError, match="at most 32"):
-        bulletformat.featurise_records(np.frombuffer(bytes(record), dtype=bulletformat.RECORD_DTYPE))
+        bulletformat.featurize_records(np.frombuffer(bytes(record), dtype=bulletformat.RECORD_DTYPE))
 
 
-def test_a_single_record_block_featurises(records):
-    own, _, _, _ = bulletformat.featurise_records(records[:1])
+def test_a_single_record_block_featurizes(records):
+    own, _, _, _ = bulletformat.featurize_records(records[:1])
     assert own.shape[0] == 1
 
 
@@ -94,14 +94,14 @@ def test_feature_check_agrees_and_detects_a_difference(records, capsys):
     bad = records.copy()
     bad[0]["pieces"][0] = (bad[0]["pieces"][0] & 0xF0) | 0x00   # a1 rook turned into a pawn: the text path differs
     # The FEN is rebuilt from the same bytes, so the two paths still agree; this proves the check is not vacuous
-    # only if it can disagree, so break the vectorised side instead.
-    original = bulletformat.featurise_records
+    # only if it can disagree, so break the vectorized side instead.
+    original = bulletformat.featurize_records
     try:
-        bulletformat.featurise_records = lambda block: tuple(
+        bulletformat.featurize_records = lambda block: tuple(
             array + 1 if index < 2 else array for index, array in enumerate(original(block)))
         assert bulletformat_check.check_features_match(records) == len(FENS)
     finally:
-        bulletformat.featurise_records = original
+        bulletformat.featurize_records = original
     assert "differs" in capsys.readouterr().out
 
 

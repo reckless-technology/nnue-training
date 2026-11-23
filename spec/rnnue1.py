@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Jonny Reckless
 """The shared Reckless NNUE architecture and its `RNNUE1` net container — the Python side.
 
-One network shape and one file format for every chess engine in the organisation (`pawnstar`,
+One network shape and one file format for every chess engine in the organization (`pawnstar`,
 `pawnstar-rs`, `pawnstar-go` and Trebuchet): a net trained once loads in all of them, so developing a new
 evaluation function is done once rather than once per engine. The shape is Trebuchet's, because its two
 additions over the others' — material output buckets (+14.7 Elo) and horizontal king mirroring
@@ -13,7 +13,7 @@ additions over the others' — material output buckets (+14.7 Elo) and horizonta
 This module is **stdlib only**, on purpose: it is the one definition of the architecture's numbers and of
 the container, and CI's synthetic-net generator (`tools/make_test_net.py`) must be able to import it on a
 machine with no trainer environment. `features.py` takes its constants from here and owns everything
-above them — the feature-index convention, the quantisation arithmetic and the integer forward pass.
+above them — the feature-index convention, the quantization arithmetic and the integer forward pass.
 
 The container is self-describing where the retired `ZNNUE5`/`ZNNUE4`/`ZNNUE3` formats were not. Those
 carried an 8-byte magic and nothing else, so a net for a different architecture was told apart only by
@@ -100,7 +100,7 @@ ACTIVATION_SCRELU = 0       # activation 0: clamp(x, 0, QA), which the output do
 FORMAT_VERSION = 2 if IS_KING_MIRRORING_ENABLED else 1
 FLAGS = FLAG_KING_MIRRORING if IS_KING_MIRRORING_ENABLED else 0
 
-# Exact size of the quantised payload: three int16 sections then one int32 per output bucket, tightly
+# Exact size of the quantized payload: three int16 sections then one int32 per output bucket, tightly
 # packed and little-endian, with nothing after it. 12,617,760 bytes at this shape.
 PAYLOAD_BYTES = (
     (INPUT_FEATURES * HIDDEN_SIZE + HIDDEN_SIZE + NUM_OUTPUT_BUCKETS * 2 * HIDDEN_SIZE) * 2

@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Jonny Reckless
 // Copyright (c) 2023 Jamie Whiting
 //
-// Portions of this file follow bullet (https://github.com/jw1912/bullet, MIT licence, pinned commit
+// Portions of this file follow bullet (https://github.com/jw1912/bullet, MIT license, pinned commit
 // da426a49b2a4b79a55a87031cd51c89bdf1ff030): the SCReLU inference, the Net field layout and the order of the output
-// dequantisation follow the example inference at the foot of examples/simple.rs; the per-piece feature index, the
+// dequantization follow the example inference at the foot of examples/simple.rs; the per-piece feature index, the
 // king-bucket offset and the mirror flip are those of bullet's `Chess768` and `ChessBucketsMirrored` input types
 // (crates/bullet_lib/src/game/inputs), and the head selection is that of `MaterialCount`
 // (crates/bullet_lib/src/game/outputs.rs). The MIT copyright and permission notice is in THIRD-PARTY-NOTICES.md at
@@ -12,12 +12,12 @@
 /*
 Reference evaluator for cross-checking each engine's in-engine NNUE inference against bullet.
 
-Reads a trained net (bullet's native quantised .bin, NOT a stamped RNNUE1 net) and a list of FENs (one per
+Reads a trained net (bullet's native quantized .bin, NOT a stamped RNNUE1 net) and a list of FENs (one per
 line, on stdin or a file argument), and prints "<fen> | <eval_cp>" using the SAME horizontally-mirrored
 king-bucketed ChessBucketsMirrored feature formula bullet trains with, the SAME MaterialCount output-head
 selection and the SAME SCReLU inference. Each engine's own NNUE suite compares its evaluation to this
 output, and agreement within rounding confirms feature indexing, king bucketing, mirroring, orientation,
-head selection and dequantisation all match.
+head selection and dequantization all match.
 
 THIS IS THE CANONICAL REFERENCE-EVALUATION GENERATOR, and it is the producer side of this repository's
 "producer asserts, consumer verifies" split: the values it prints are what every consumer's
@@ -33,10 +33,10 @@ Usage:  cargo run --release --example pawnstar_eval -- <net.bin> [fens.txt]
 
 Two notes on what to feed it, both worth knowing before a mismatch is read as a bug:
 
-  * <net.bin> is the trainer's own quantised output, not a stamped net. An RNNUE1 file will parse, because
+  * <net.bin> is the trainer's own quantized output, not a stamped net. An RNNUE1 file will parse, because
     the reader skips nothing, but its 64-byte header would be read as feature weights.
   * the payload of a stamped RNNUE1 net IS a valid input once the 64-byte header is stripped: at this shape
-    bullet/pawnstar.rs quantises l1b to i32, so the trainer's weight image and the container's payload are
+    bullet/pawnstar.rs quantizes l1b to i32, so the trainer's weight image and the container's payload are
     the same bytes in the same order, and the only difference is the trainer's trailing padding, which this
     reader ignores. That is the cheapest way to regenerate a reference file for a net whose checkpoint has
     been cleaned up - `tail -c +65 <stamped net>` - and it is how the comparison in this repository's
