@@ -1,0 +1,254 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Jonny Reckless
+#
+# Screen a candidate net on GitHub-hosted runners: the candidate against the net Pawnstar ships, in Pawnstar, through
+# the engines' shared match workflow. A candidate comes out of GPU training elsewhere; this is the cheap first look
+# at whether it is worth a longer match. It replaces the by-hand chain scripts that ran on lin-0, the organisation's
+# one self-hosted Linux machine, where a running match made every private repository unpushable.
+#
+# Manual only. The match runner stays the engines': this file builds Pawnstar, stages the two nets and calls
+# reckless-technology/pawnstar's match-core.yml (guide: docs/match-core.md in that repository). It copies none of
+# the core's code. The minutes are this repository's, on public-repository hosted runners.
+#
+#   verify -> downloads the candidate net and refuses it unless its SHA-256 matches, BEFORE anything is built
+#   build  -> builds Pawnstar once at the chosen ref and gathers ONE binary (used for both sides), the candidate net,
+#             the net that ref ships, the opening set and a manifest.json into the artifact `match-inputs`
+#   depth  -> the core at a fixed depth        (when `mode` is depth or both)
+#   clock  -> the core at a time control       (when `mode` is time or both)
+#
+# Both sides run the same binary, so the only difference between them is the net. Pawnstar's own RNNUE1 preflight
+# (tools/pawnstar-match.sh --dry-run) runs in every chunk before it plays: it decodes both nets' headers, refuses a
+# net that is not intact or does not fit, and makes each side load its net for real.
+#
+# The core is pinned to a COMMIT, never a branch: it checks its tools out at the commit it was called at.
+#
+# Capacity: every public repository in the organisation shares about 60 concurrent hosted jobs and the core keeps
+# max-parallel at 40. Keep `chunks` modest.
+name: screen-net
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_net_url:
+        description: 'Candidate net URL (https; a release asset or any direct download)'
+        required: true
+      candidate_net_sha256:
+        description: 'SHA-256 of the candidate net (64 hex digits); the run stops before any match if it differs'
+        required: true
+      mode:
+        description: 'depth, time or both (lin-0 screened at both)'
+        type: choice
+        options: [both, depth, time]
+        default: both
+      depth:
+        description: 'Fixed search depth for the depth match'
+        default: '8'
+      time_control:
+        description: 'Time control for the clock match'
+        default: '8+0.08'
+      games:
+        description: 'Games per match (rounded up to whole colour-reversed pairs); lin-0 played 4 x 1000'
+        default: '4000'
+      chunks:
+        description: 'Chunk jobs per match'
+        default: '20'
+      hash_mb:
+        description: 'Transposition table per engine, MB (lin-0 screened at 16)'
+        default: '16'
+      concurrency:
+        description: 'Games at once per chunk job'
+        default: '2'
+      pawnstar_ref:
+        description: 'Pawnstar tag or commit to build and take the shipped net from (empty = the newest vMAJOR.MINOR.PATCH tag)'
+        default: ''
+      first_opening:
+        description: 'First position of Pawnstar nnue/openings.epd to play (1-based)'
+        default: '1'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Download the candidate net and check its SHA-256
+        env:
+          NET_URL: ${{ inputs.candidate_net_url }}
+          NET_SHA256: ${{ inputs.candidate_net_sha256 }}
+        run: |
+          set -euo pipefail
+          case "$NET_URL" in https://*) ;; *) echo "::error::the net URL must be https"; exit 1 ;; esac
+          printf '%s' "$NET_SHA256" | grep -Eq '^[0-9a-fA-F]{64}$' \
+            || { echo "::error::the SHA-256 must be 64 hex digits"; exit 1; }
+          curl -fsSL --retry 3 -o candidate.bin "$NET_URL"
+          actual=$(sha256sum candidate.bin | cut -d' ' -f1)
+          wanted=$(printf '%s' "$NET_SHA256" | tr 'A-F' 'a-f')
+          echo "size   $(stat -c %s candidate.bin)"
+          echo "sha256 $actual"
+          if [ "$actual" != "$wanted" ]; then
+            echo "::error::the candidate net's SHA-256 is $actual, not the $wanted given: refusing it, no match was started"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v5
+        with:
+          name: candidate-net
+          path: candidate.bin
+          retention-days: 14
+          if-no-files-found: error
+
+  build:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Pawnstar, every tag
+        uses: actions/checkout@v5
+        with:
+          repository: reckless-technology/pawnstar
+          fetch-depth: 0
+          path: pawnstar-src
+      - name: Resolve the Pawnstar ref
+        id: ref
+        env:
+          IN_REF: ${{ inputs.pawnstar_ref }}
+        run: |
+          set -euo pipefail
+          cd pawnstar-src
+          ref="$IN_REF"
+          if [ -z "$ref" ]; then
+            ref=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+            [ -n "$ref" ] || { echo "::error::Pawnstar has no vMAJOR.MINOR.PATCH tag"; exit 1; }
+          fi
+          sha=$(git rev-parse --verify "$ref^{commit}")
+          git checkout --detach "$sha"
+          echo "pawnstar $ref = $sha"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: The verified candidate net
+        uses: actions/download-artifact@v5
+        with:
+          name: candidate-net
+          path: fetched
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang-18 cmake ninja-build
+      - name: Check runner has AVX2 + BMI2
+        run: |
+          grep -q avx2 /proc/cpuinfo && grep -q bmi2 /proc/cpuinfo \
+            || { echo "::error::runner CPU lacks AVX2/BMI2 - cannot run the engine"; exit 1; }
+      - name: Build Pawnstar (engine and print_net_header)
+        run: |
+          cd pawnstar-src
+          make -j"$(nproc)" RELEASE=1 CXX=clang++-18
+          cmake --build build --parallel --target print_net_header
+      - name: Gather the match inputs and write the manifest
+        env:
+          PAWNSTAR_REF: ${{ steps.ref.outputs.ref }}
+          PAWNSTAR_SHA: ${{ steps.ref.outputs.sha }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_net_sha256 }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/candidate inputs/baseline
+          # One binary, two copies: the sides differ only in their net.
+          cp -L pawnstar-src/build/pawnstar inputs/candidate/pawnstar
+          cp -L pawnstar-src/build/pawnstar inputs/baseline/pawnstar
+          cp -L pawnstar-src/build/print_net_header inputs/candidate/print_net_header
+          cp pawnstar-src/nnue/openings.epd inputs/openings.epd
+          cp fetched/candidate.bin inputs/candidate.bin
+          # The shipped net is whichever single pawnstar-v*.bin the ref carries.
+          shipped=$(ls pawnstar-src/nnue/pawnstar-v*.bin)
+          [ "$(printf '%s\n' "$shipped" | wc -l)" -eq 1 ] \
+            || { echo "::error::expected exactly one shipped net, found: $shipped"; exit 1; }
+          cp "$shipped" inputs/baseline.bin
+          echo "$shipped" > inputs/shipped-net-name.txt
+          chmod +x inputs/*/pawnstar inputs/candidate/print_net_header
+
+          # The manifest tools/match_core.py reads (docs/match-core.md in pawnstar). Each side gets its net at
+          # startup through PAWNSTAR_EVALFILE and as the EvalFile option, and one search thread; OwnBook is off
+          # for both, since the engine's book move is weighted-random.
+          python3 - <<'PY'
+          import hashlib, json, os
+          env = os.environ
+          def side(role, label):
+              net = "{inputs}/%s.bin" % role
+              return {"name": label, "command": "{inputs}/%s/pawnstar" % role,
+                      "options": {"EvalFile": net},
+                      "env": {"PAWNSTAR_EVALFILE": net, "PAWNSTAR_THREADS": "1"}}
+          shipped = open("inputs/shipped-net-name.txt").read().strip().split("/")[-1]
+          manifest = {
+              "format": 1,
+              "candidate": side("candidate", "candidate net " + env["CANDIDATE_SHA256"][:12]),
+              "baseline": side("baseline", "shipped net " + shipped),
+              "each_options": {"OwnBook": "false"},
+              "openings": {"path": "openings.epd",
+                           "sha256": hashlib.sha256(open("inputs/openings.epd", "rb").read()).hexdigest()},
+              "notes": [f"pawnstar {env['PAWNSTAR_REF']} commit {env['PAWNSTAR_SHA']}, one binary for both sides",
+                        f"candidate net sha256 {env['CANDIDATE_SHA256'].lower()}",
+                        f"baseline: the net {env['PAWNSTAR_REF']} ships ({shipped})",
+                        f"workflow commit {env['WORKFLOW_SHA']}"],
+          }
+          json.dump(manifest, open("inputs/manifest.json", "w"), indent=2)
+          PY
+          rm inputs/shipped-net-name.txt
+          {
+            echo "pawnstar_ref      $PAWNSTAR_REF"
+            echo "pawnstar_commit   $PAWNSTAR_SHA"
+            echo "workflow_commit   $WORKFLOW_SHA"
+            (cd inputs && sha256sum candidate.bin baseline.bin openings.epd candidate/pawnstar baseline/pawnstar)
+          } | tee inputs/manifest.txt
+          {
+            echo '### Match inputs'
+            echo '```'
+            cat inputs/manifest.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: match-inputs
+          path: inputs
+          retention-days: 14
+          if-no-files-found: error
+
+  depth:
+    if: ${{ inputs.mode != 'time' }}
+    needs: build
+    uses: reckless-technology/pawnstar/.github/workflows/match-core.yml@c0ffab8bd8ed60369a9e819b9475b4a63e6157d4
+    with:
+      artifact: match-inputs
+      tag: depth
+      title: "Screen: candidate net against the shipped net, depth ${{ inputs.depth || '8' }}"
+      depth: ${{ inputs.depth || '8' }}
+      games: ${{ inputs.games || '4000' }}
+      chunks: ${{ inputs.chunks || '20' }}
+      concurrency: ${{ inputs.concurrency || '2' }}
+      hash_mb: ${{ inputs.hash_mb || '16' }}
+      first_opening: ${{ inputs.first_opening || '1' }}
+      preflight: |
+        "$MATCH_TOOLS/pawnstar-match.sh" --repo "$MATCH_INPUTS" \
+          --candidate candidate.bin --baseline baseline.bin \
+          --candidate-binary candidate/pawnstar --baseline-binary baseline/pawnstar \
+          --openings openings.epd --games 2 $MATCH_CLOCK_ARGS \
+          --log-dir "${RUNNER_TEMP:-/tmp}/preflight" --label preflight --allow-busy-runner --dry-run
+
+  clock:
+    if: ${{ inputs.mode != 'depth' }}
+    needs: build
+    uses: reckless-technology/pawnstar/.github/workflows/match-core.yml@c0ffab8bd8ed60369a9e819b9475b4a63e6157d4
+    with:
+      artifact: match-inputs
+      tag: clock
+      title: "Screen: candidate net against the shipped net, ${{ inputs.time_control || '8+0.08' }}"
+      time_control: ${{ inputs.time_control || '8+0.08' }}
+      games: ${{ inputs.games || '4000' }}
+      chunks: ${{ inputs.chunks || '20' }}
+      concurrency: ${{ inputs.concurrency || '2' }}
+      hash_mb: ${{ inputs.hash_mb || '16' }}
+      first_opening: ${{ inputs.first_opening || '1' }}
+      preflight: |
+        "$MATCH_TOOLS/pawnstar-match.sh" --repo "$MATCH_INPUTS" \
+          --candidate candidate.bin --baseline baseline.bin \
+          --candidate-binary candidate/pawnstar --baseline-binary baseline/pawnstar \
+          --openings openings.epd --games 2 $MATCH_CLOCK_ARGS \
+          --log-dir "${RUNNER_TEMP:-/tmp}/preflight" --label preflight --allow-busy-runner --dry-run
