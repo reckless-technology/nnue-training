@@ -7,7 +7,7 @@
 # only the engine can answer (see README.md, "What belongs here, and what does not").
 #
 # EVERY JOB RUNS ON A GITHUB-HOSTED IMAGE, PINNED BY VERSION, AND THAT IS DELIBERATE. The
-# organisation's self-hosted runner group does not admit public repositories at all, so a
+# organization's self-hosted runner group does not admit public repositories at all, so a
 # `self-hosted` label here would queue forever and never start. The two Linux self-hosted machines
 # are also the machines that run the engines' timed chess matches, so a job landing beside a match
 # takes its cores and biases its time control - which is the second reason not to point this at them.
@@ -57,7 +57,7 @@ jobs:
       - name: pytorch/ can import the container module
         working-directory: pytorch
         run: python3 -c "import spec_path, rnnue1; print('ok  rnnue1 via spec_path:', rnnue1.MAGIC)"
-      # numpy is the only dependency of the featuriser and the bulletformat reader, so importing those
+      # numpy is the only dependency of the featurizer and the bulletformat reader, so importing those
       # for real is cheap. train.py and verify.py additionally need torch, which is not worth a CI
       # download here - they reach rnnue1 by the same one line the step above exercises.
       - name: the numpy-only modules import
@@ -69,7 +69,7 @@ jobs:
           print('ok  features/bulletformat/bulletformat_check import, INPUT_FEATURES', features.INPUT_FEATURES)
           "
 
-  # The container, the stamper, the featuriser, the bulletformat reader and the verification gate's net
+  # The container, the stamper, the featurizer, the bulletformat reader and the verification gate's net
   # loader are tested by tests/ (pytest), and their line coverage is measured and gated here. The old
   # inline round-trip and stamper steps of the `python` job moved into tests/test_rnnue1.py and
   # tests/test_stamp_net.py, where coverage can see them.
@@ -94,8 +94,8 @@ jobs:
       - name: pytest with line coverage, failing under the gate
         run: .venv/bin/python -m pytest tests --cov --cov-config=.coveragerc --cov-fail-under=97 --cov-report=term-missing
 
-  licence-headers:
-    name: licence headers
+  license-headers:
+    name: license headers
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

@@ -1,7 +1,7 @@
 # Third-party notices
 
 This repository is licensed **GPL-3.0-or-later** (see [LICENSE](LICENSE)). It contains portions of one
-third-party work, which is licensed under the MIT licence. GPL-3.0-or-later can incorporate MIT-licensed code
+third-party work, which is licensed under the MIT license. GPL-3.0-or-later can incorporate MIT-licensed code
 provided the MIT copyright and permission notice is kept, and this file is where it is kept. It is also named in
 the header of each file concerned.
 
@@ -9,22 +9,22 @@ the header of each file concerned.
 
 - Project: <https://github.com/jw1912/bullet> - the NNUE trainer these examples are compiled inside
 - Copyright (c) 2023 Jamie Whiting
-- Licence: MIT
+- License: MIT
 - Pinned commit: `da426a49b2a4b79a55a87031cd51c89bdf1ff030` (the one `bullet/setup_bullet.sh` checks out)
 - Taken from: `examples/simple.rs` at that commit (git blob `c28ab5d04e1d4da7db91fd881ec23ca03bce5c0e`)
 
 | File here | What derives from bullet's `examples/simple.rs` |
 |---|---|
-| `bullet/pawnstar.rs` | The skeleton of the trainer: the `use bullet_lib::{...}` import block, the `QA`/`QB`/`SCALE` constants, the `ValueTrainerBuilder` chain, the `SavedFormat` quantisation list, the loss function, the SCReLU forward pass, and the `TrainingSchedule` layout. |
-| `bullet/pawnstar_eval.rs` | The reference inference, which follows the example inference at the foot of `simple.rs`: the SCReLU function, the `Net` field names and the order of the output dequantisation. The rest of the file is not bullet's. |
+| `bullet/pawnstar.rs` | The skeleton of the trainer: the `use bullet_lib::{...}` import block, the `QA`/`QB`/`SCALE` constants, the `ValueTrainerBuilder` chain, the `SavedFormat` quantization list, the loss function, the SCReLU forward pass, and the `TrainingSchedule` layout. |
+| `bullet/pawnstar_eval.rs` | The reference inference, which follows the example inference at the foot of `simple.rs`: the SCReLU function, the `Net` field names and the order of the output dequantization. The rest of the file is not bullet's. |
 
 Everything else in this repository was written for it or comes from `pawnstar` and `trebuchet`, recorded file by
 file in the maintainer's provenance log; none of it carries bullet's code. bullet itself is **not** vendored here:
-`bullet/setup_bullet.sh` clones it at the pinned commit, so it is a dependency, under its own licence.
+`bullet/setup_bullet.sh` clones it at the pinned commit, so it is a dependency, under its own license.
 Reading bullet's on-disk record format in `pytorch/bulletformat.py` is compatibility with a file format and
 carries no bullet code.
 
-### The MIT licence text, as published at that commit
+### The MIT license text, as published at that commit
 
 ```text
 MIT License

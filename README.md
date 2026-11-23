@@ -1,11 +1,11 @@
 # nnue-training
 
 An NNUE trainer for chess: one network architecture, one net file format, and two independent training
-front ends that produce the same artefact. It is the single definition of the architecture, the
-king-bucket map, the quantisation and the `RNNUE1` net container, so a change to any of those is made
+front ends that produce the same artifact. It is the single definition of the architecture, the
+king-bucket map, the quantization and the `RNNUE1` net container, so a change to any of those is made
 here rather than in whatever program loads the result.
 
-**What it produces** is a single `.bin` file: a quantised network wrapped in the 64-byte `RNNUE1`
+**What it produces** is a single `.bin` file: a quantized network wrapped in the 64-byte `RNNUE1`
 container, which carries every architecture field, the king-bucket map's digest and three CRC-64
 checksums, so a loader can refuse a net built for a different shape instead of evaluating from the
 wrong weight bank. `RNNUE1` is the format read by the Reckless chess engines —
@@ -28,7 +28,7 @@ SCReLU; `QA` 255, `QB` 64, evaluation scale 400. The numbers are written down on
 [`spec/rnnue1.py`](spec/rnnue1.py), and every engine checks a net's header against its own compiled
 constants at load time.
 
-- **768 base features** per king bucket: 2 colours x 6 piece types x 64 squares, from the moving side's
+- **768 base features** per king bucket: 2 colors x 6 piece types x 64 squares, from the moving side's
   perspective.
 - **8 king buckets**: 4 files x 2 board halves. **Horizontal king mirroring** flips a perspective whose
   own king is on files e-h (`square ^ 7`) onto a-d before indexing, so every bucket trains on both
@@ -60,7 +60,7 @@ side can state.
 
 ## The `RNNUE1` net container
 
-A trained net is 64 bytes of header followed by the quantised payload — 12,617,760 bytes at this shape.
+A trained net is 64 bytes of header followed by the quantized payload — 12,617,760 bytes at this shape.
 [`spec/rnnue1.py`](spec/rnnue1.py) is the reference implementation: the magic `RNNUE1\0\0`, a format
 version that moves with the architecture, every architecture field, the payload length, and three
 CRC-64/XZ digests — one over the king-bucket map, one over the payload and one over the header itself.
@@ -78,7 +78,7 @@ truncated file refuse rather than play.
 
 ```
 bullet/     the bullet trainer example and its setup — architecture, save format, environment variables
-pytorch/    the PyTorch pipeline, including the vectorised bulletformat reader
+pytorch/    the PyTorch pipeline, including the vectorized bulletformat reader
 pipeline/   harvest, extraction, deduplication, shuffle, pool audit, the cross-port signature gate
 spec/       the RNNUE1 container: the reference implementation, and the net stamper
 ```
@@ -100,7 +100,7 @@ PAWNSTAR_DATA=/path/to/shuffled.data \
 PAWNSTAR_BPS=3662 PAWNSTAR_SBS=200 PAWNSTAR_WDL=0.0 PAWNSTAR_OUT=checkpoints \
     cargo run --release --features cuda --example pawnstar
 
-# Wrap the quantised checkpoint in the RNNUE1 container the engines load. bullet's tail padding is
+# Wrap the quantized checkpoint in the RNNUE1 container the engines load. bullet's tail padding is
 # dropped here; the header is written from spec/rnnue1.py's constants, never from an argument.
 spec/stamp_net.py checkpoints/quantised.bin nets/pawnstar-v21.nnue
 ```
@@ -165,7 +165,7 @@ they are; each engine verifies against its own compiled constants and refuses lo
 ### Why the net stamper lives here
 
 `stamp_net` used to live in `pawnstar` and derive the net header from *that engine's* compile-time
-constants. That describes the reader's expectation rather than the artefact's truth, and it had a
+constants. That describes the reader's expectation rather than the artifact's truth, and it had a
 consequence worth recording.
 
 `king_bucket_map_crc` exists to catch a **trainer/engine map drift** — the failure where the trainer
@@ -211,17 +211,17 @@ consume. A file is simply N of these back to back, so its size is always a multi
 Two properties of the format do most of the work, and both are easy to get wrong.
 
 - **The record is side-to-move relative, not White relative.** A black-to-move position is flipped
-  before storing: every square `^ 56`, every piece's colour bit inverted, `score = -score` and
+  before storing: every square `^ 56`, every piece's color bit inverted, `score = -score` and
   `result = 2 - result`. So the stored board always has the side to move playing up the board, a
-  nibble's colour bit is 0 for the side to move's own pieces, and `score` and `result` are already
+  nibble's color bit is 0 for the side to move's own pieces, and `score` and `result` are already
   from the side to move's point of view. Reading the stored score as White relative correlates an
   exported net against its own training labels at about **0.14** instead of about **0.78**.
 - **The nibbles are in ascending square order, not piece order.** The n-th nibble belongs to the n-th
   lowest set bit of the occupancy, so each record has a different piece count — which is the one
-  genuinely awkward step to vectorise.
+  genuinely awkward step to vectorize.
 
 `pytorch/bulletformat_check.py` is the gate on all of this: it renders every record back to a FEN, puts
-it through the text path's featuriser, and compares the two index sets element for element, so a misread
+it through the text path's featurizer, and compares the two index sets element for element, so a misread
 field offset or nibble order cannot pass as "the net trained, it must be fine".
 
 ### The text records
@@ -241,11 +241,11 @@ distinct positions, which is the cheap check that a pool is not mostly the same 
 ### If you distribute a network this trainer produces
 
 Worth knowing, and not obvious: **a network trained on a licensed database may be a "Produced Work" of
-that database**, and some database licences attach an attribution obligation to distributing a Produced
-Work even though they place no licensing condition on the Produced Work itself. So the licence of
-whatever data you train on can reach the net you ship, without making the net carry that licence — and
+that database**, and some database licenses attach an attribution obligation to distributing a Produced
+Work even though they place no licensing condition on the Produced Work itself. So the license of
+whatever data you train on can reach the net you ship, without making the net carry that license — and
 without this repository's GPL reaching it either. If you distribute a net, check what your data's
-licence asks of you. Nothing here can answer that for you, because it never sees your data.
+license asks of you. Nothing here can answer that for you, because it never sees your data.
 
 ## What is not finished
 
@@ -280,7 +280,7 @@ repository's, on public-repository hosted runners.
 | `mode` | `both` | `depth`, `time` or `both`: lin-0's screening played a depth match and a clock match |
 | `depth` | `8` | fixed depth of the depth match |
 | `time_control` | `8+0.08` | clock of the clock match |
-| `games` | `4000` | per match, rounded up to whole colour-reversed pairs |
+| `games` | `4000` | per match, rounded up to whole color-reversed pairs |
 | `chunks` | `20` | chunk jobs per match; the games are divided between them |
 | `hash_mb` | `16` | transposition table per engine |
 | `concurrency` | `2` | games at once per chunk (a hosted runner is 2 cores) |
@@ -293,16 +293,16 @@ chunks, so 4000 a match; `Hash` 16 MB, `Threads` 1; the opening set Pawnstar shi
 same flags. Two differences are the hosted runners': the 4000 games are cut into 20 chunk jobs, not four serial
 ones, and a hosted runner's CPU model is not fixed, so a clock match is comparable with lin-0's only
 approximately; a fixed-depth match is deterministic across machines. Sanity check: the shipped net against
-itself at depth 8 scores exactly 50% with every colour-reversed pair drawn 1-1.
+itself at depth 8 scores exactly 50% with every color-reversed pair drawn 1-1.
 
-Every public repository in the organisation shares about 60 hosted jobs: keep `chunks` modest.
+Every public repository in the organization shares about 60 hosted jobs: keep `chunks` modest.
 
 ## Tests and coverage
 
 `tests/` is a pytest suite over the Python that needs no trainer environment: `spec/rnnue1.py` and
 `spec/stamp_net.py` (the container, its CRCs and refusals, and the stamper's three inputs),
-`pytorch/features.py`, `pytorch/bulletformat.py` and `pytorch/bulletformat_check.py` (the vectorised
-featuriser against the text path, over positions built into records by `tests/conftest.py`), and
+`pytorch/features.py`, `pytorch/bulletformat.py` and `pytorch/bulletformat_check.py` (the vectorized
+featurizer against the text path, over positions built into records by `tests/conftest.py`), and
 `pytorch/verify.py` (the net loader, and the comparison against a stand-in engine script). Nothing
 trains and nothing needs a GPU or a dataset.
 
@@ -319,8 +319,8 @@ pure Python over a 12.6 MB payload, so the stamper tests dominate the suite's mi
 What is not measured, and why:
 
 - **`pytorch/train.py` has no tests.** It imports torch, which the job does not install, so
-  `.coveragerc` leaves it out rather than counting it at 0 %. Its pure parts (`_featurise_lines`,
-  `screlu`, `export_quantised_net`, the shard cache) are what a test would start with, under a CPU torch.
+  `.coveragerc` leaves it out rather than counting it at 0 %. Its pure parts (`_featurize_lines`,
+  `screlu`, `export_quantized_net`, the shard cache) are what a test would start with, under a CPU torch.
 - **The Rust under `bullet/` has no tests and no coverage.** `pawnstar.rs` and `pawnstar_eval.rs` are
   bullet examples, compiled inside a bullet checkout (`bullet/setup_bullet.sh`) and not a crate of this
   repository, so there is nothing for `cargo llvm-cov` to run here. The nearest check is the engines' 250
@@ -338,7 +338,7 @@ you make will be refused.
 Shell scripts, Markdown and source files are pinned to LF in `.gitattributes`, so a Windows clone does
 not hand `bash` a `\r` on every line.
 
-## Licence
+## License
 
 **The code in this repository is GPL-3.0-or-later.** [LICENSE](LICENSE) is the GPLv3 text exactly as
 `pawnstar`, `pawnstar-rs`, `pawnstar-go`, `trebuchet` and the shared toolkit carry it. Each source file
@@ -350,11 +350,11 @@ byte-identical to the three engine copies.
 Three things are licensed separately, and are not the same thing:
 
 - **The code here is GPL.** That is this section.
-- **Your training data is under whatever licence you obtained it under.** It is not part of this
+- **Your training data is under whatever license you obtained it under.** It is not part of this
   repository and nothing here changes it.
 - **A network this trainer produces is not GPL merely because this code trained it.** The GPL covers
   this program and its source; a net file is data produced by running it. What a net may carry is
-  whatever its training data's licence attaches to a work derived from that data — see
+  whatever its training data's license attaches to a work derived from that data — see
   [If you distribute a network this trainer produces](#if-you-distribute-a-network-this-trainer-produces).
 
 **bullet, the trainer this depends on, is MIT** (Copyright (c) 2023 Jamie Whiting,

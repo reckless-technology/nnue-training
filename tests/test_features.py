@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Jonny Reckless
-"""The featuriser and the integer forward pass, against values worked out independently here."""
+"""The featurizer and the integer forward pass, against values worked out independently here."""
 import numpy as np
 import pytest
 

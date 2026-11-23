@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Jonny Reckless
-"""Vectorised reader and featuriser for `bulletformat` training records.
+"""Vectorized reader and featurizer for `bulletformat` training records.
 
-The trainer's original front end reads `fen;score;wdl` text and featurises it one position at a time in
-Python (`train._featurise_lines`), which is fine once per shard into an `.npz` cache and far too slow on a
+The trainer's original front end reads `fen;score;wdl` text and featurizes it one position at a time in
+Python (`train._featurize_lines`), which is fine once per shard into an `.npz` cache and far too slow on a
 training critical path. A `bulletformat` record is already a packed bitboard rather than text, so there is
 no expensive parse to amortise and the cache stops being necessary: this module expands records straight
 into the padded index arrays the model consumes, with numpy doing every position at once.
@@ -22,9 +22,9 @@ The record is `bulletformat::ChessBoard` (crate 1.8.0, `src/chess.rs`), 32 bytes
 Two properties of the format do most of the work here, and both are easy to get wrong.
 
 **The record is stored side-to-move relative, not White relative.** `ChessBoard::from_raw` and its
-`FromStr` both flip a black-to-move position before storing it: every square `^ 56`, every piece's colour
+`FromStr` both flip a black-to-move position before storing it: every square `^ 56`, every piece's color
 bit inverted, `score = -score` and `result = 2 - result`. So the stored board always has the side to move
-playing up the board, the nibble's colour bit is 0 for the side to move's OWN pieces and 1 for the
+playing up the board, the nibble's color bit is 0 for the side to move's OWN pieces and 1 for the
 opponent's, and `score` and `result` are already from the side to move's point of view. The crate's doc
 comment "Score is White relative" describes `from_raw`'s *argument*, before that flip, not the stored
 field -- a distinction worth keeping straight, because reading the stored score as White relative
@@ -32,7 +32,7 @@ correlates an exported net against its own training labels at about 0.14 instead
 
 **The nibbles are in ascending square order, not piece order.** `BoardIter` walks `occ` by
 `trailing_zeros`, so the n-th nibble belongs to the n-th lowest set bit of the occupancy. Each row has a
-different piece count, which is the one genuinely awkward step to vectorise: `np.nonzero` gives every
+different piece count, which is the one genuinely awkward step to vectorize: `np.nonzero` gives every
 active square in row-major (so per-row ascending) order, and subtracting a `cumsum` row offset turns that
 into each piece's nibble slot.
 
@@ -49,7 +49,7 @@ from features import MAX_ACTIVE_FEATURES, PADDING_INDEX
 from rnnue1 import BASE_FEATURES, KING_BUCKET_MAP
 
 RECORD_BYTES = 32
-PIECES_PER_COLOUR_BLOCK = 384  # one perspective's own-pieces block: 6 piece types x 64 squares
+PIECES_PER_COLOR_BLOCK = 384  # one perspective's own-pieces block: 6 piece types x 64 squares
 
 # The record's own field layout, used for the scalar fields; the occupancy bitboard is read through the
 # plain uint8 view instead, because np.unpackbits wants bytes.
@@ -67,18 +67,18 @@ assert RECORD_DTYPE.itemsize == RECORD_BYTES, "the bulletformat record is 32 byt
 _KING_BUCKET_MAP_ARRAY = np.frombuffer(KING_BUCKET_MAP, dtype=np.uint8).astype(np.int16)
 _SLOT_NUMBERS = np.arange(MAX_ACTIVE_FEATURES, dtype=np.int16)
 
-# nibble -> (piece_type + 6 * relative_colour) * 64, one table per perspective. A nibble is
-# `colour << 3 | piece_type`, with colour 0 meaning "belongs to the side to move", so the colour block and
+# nibble -> (piece_type + 6 * relative_color) * 64, one table per perspective. A nibble is
+# `color << 3 | piece_type`, with color 0 meaning "belongs to the side to move", so the color block and
 # the piece-type block of the feature index are a function of the nibble alone. Reading them out of a
 # 16-entry table costs one cache-resident gather in place of two shifts, two multiplies and two widening
-# casts over every piece in the block, which measured as the second-largest cost in the whole featurisation.
+# casts over every piece in the block, which measured as the second-largest cost in the whole featurization.
 _OWN_PIECE_OFFSETS = np.zeros(16, dtype=np.int16)
 _OPPONENT_PIECE_OFFSETS = np.zeros(16, dtype=np.int16)
 for _nibble in range(16):
-    _colour, _piece_type = _nibble >> 3, _nibble & 7
+    _color, _piece_type = _nibble >> 3, _nibble & 7
     if _piece_type < 6:  # 6 and 7 are not pieces; those slots are never read
-        _OWN_PIECE_OFFSETS[_nibble] = (_piece_type + 6 * _colour) * 64
-        _OPPONENT_PIECE_OFFSETS[_nibble] = (_piece_type + 6 * (1 - _colour)) * 64
+        _OWN_PIECE_OFFSETS[_nibble] = (_piece_type + 6 * _color) * 64
+        _OPPONENT_PIECE_OFFSETS[_nibble] = (_piece_type + 6 * (1 - _color)) * 64
 
 PIECE_TYPE_CHARACTERS = "PNBRQK"
 
@@ -108,7 +108,7 @@ def read_records(path, count=None, first_record=0):
     return mapped.view(RECORD_DTYPE)
 
 
-def featurise_records(records):
+def featurize_records(records):
     """Expand a block of records into the padded index arrays the model consumes.
 
     Returns `(own_indices, opponent_indices, scores, results)`:
@@ -127,7 +127,7 @@ def featurise_records(records):
     piece. Within that, the piece counts come from `np.bitwise_count` on the bitboard rather than from
     summing the unpacked bits (45 ms to 1 ms per million records), the compaction uses `np.flatnonzero`
     over the ravelled bits rather than `np.nonzero` over the two-dimensional array (405 ms to 235 ms, and
-    one index array instead of two), and the colour and piece-type terms come from the two 16-entry tables
+    one index array instead of two), and the color and piece-type terms come from the two 16-entry tables
     above. Together those took one million records from 0.67M to 1.13M positions/sec on one core, with
     byte-identical output; what remains is bounded by memory bandwidth over the two 67 MB output arrays and
     by the compaction's indirection, and did not move further for any arrangement tried.
@@ -177,7 +177,7 @@ def featurise_records(records):
     opponent_mirrors = np.where((opponent_king_squares & 7) >= 4, 7, 0).astype(np.int16)[:, None]
 
     # features.feature_index, one expression per perspective. The side-to-move perspective reads the record
-    # frame as it stands; the opponent perspective flips every square vertically and swaps which colour
+    # frame as it stands; the opponent perspective flips every square vertically and swaps which color
     # block a piece lands in. Accumulated in place to keep the number of 67 MB temporaries down.
     own_indices = _OWN_PIECE_OFFSETS[nibbles]
     own_indices += own_bases
@@ -200,9 +200,9 @@ def record_to_fen(record):
 
     The frame is the point: the record does not say whose turn it was, because it has already flipped a
     black-to-move position onto the side to move. So the FEN this returns is always "w" to move, and
-    `features.position_features` of it yields exactly the indices `featurise_records` yields for the same
+    `features.position_features` of it yields exactly the indices `featurize_records` yields for the same
     record. Castling rights and the clocks are not in the record and are written as unavailable; neither
-    affects featurisation. For the equivalence check and for reading records by eye, not for training.
+    affects featurization. For the equivalence check and for reading records by eye, not for training.
     """
     occupancy = int(record["occupancy"])
     packed = np.asarray(record["pieces"])
